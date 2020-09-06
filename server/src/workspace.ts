@@ -66,23 +66,45 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
     ignore: ["node_modules/", "build/"],
   });
 
-  paths.forEach((path) => {
-    const fullPath = `${cwd}/${path}`;
-    const uri = `file://${fullPath}`;
-    if (documents.has(uri)) {
-      console.log(`Already have document for ${uri} (before read)`);
-      return;
-    }
-    readFile(fullPath, "utf8", (err, contents) => {
-      if (err) {
-        console.error(`Failed to read ${fullPath}: ${err}`);
+  const promises = paths.map(
+    (path): Promise<TextDocument | null> =>
+      new Promise((resolve, reject) => {
+        const fullPath = `${cwd}/${path}`;
+        const uri = `file://${fullPath}`;
+        if (documents.has(uri)) {
+          console.log(`Already have document for ${uri} (before read)`);
+          return resolve(null);
+        }
+        readFile(fullPath, "utf8", (err, contents) => {
+          if (err) {
+            console.error(`Failed to read ${fullPath}: ${err}`);
+            return reject(err);
+          }
+          if (documents.has(uri)) {
+            console.log(`Already have document for ${uri} (after read)`);
+            return resolve(null);
+          }
+          const document = TextDocument.create(
+            uri,
+            "restructuredtext",
+            0,
+            contents
+          );
+
+          // Initial load of labels to avoid undefined references later
+          findLabels(document);
+
+          return resolve(document);
+        });
+      })
+  );
+
+  Promise.all(promises).then((documents) => {
+    documents.forEach((document) => {
+      if (!document) {
         return;
       }
-      if (documents.has(uri)) {
-        console.log(`Already have document for ${uri} (after read)`);
-        return;
-      }
-      updateDocument(TextDocument.create(uri, "restructuredtext", 0, contents));
+      updateDocument(document);
     });
   });
 }
@@ -124,7 +146,7 @@ function deleteEntitiesForDocument(uri: DocumentUri) {
 
 function findLabels(textDocument: TextDocument) {
   let text = textDocument.getText();
-  let pattern = /.. _([A-z-]+):/g;
+  let pattern = /\.\. _([A-z-]+):/g;
   let m: RegExpExecArray | null;
 
   const { uri } = textDocument;
