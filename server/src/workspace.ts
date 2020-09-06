@@ -13,6 +13,12 @@ import {
   DiagnosticSeverity,
   Position,
   Location,
+  DeclarationParams,
+  ReferenceParams,
+  TextDocumentPositionParams,
+  CompletionItem,
+  CompletionItemKind,
+  TextDocumentChangeEvent,
 } from "vscode-languageserver";
 import { URL } from "url";
 import globby = require("globby");
@@ -211,4 +217,57 @@ function findReferences(textDocument: TextDocument) {
   connection.sendDiagnostics({ uri, diagnostics });
 }
 
-export { addWorkspaceFolder, updateDocument, declarations, references };
+function onDidChangeContentHandler(
+  change: TextDocumentChangeEvent<TextDocument>
+) {
+  updateDocument(change.document);
+}
+
+function onCompletionHandler(
+  _textDocumentPosition: TextDocumentPositionParams
+): CompletionItem[] {
+  return Array.from(declarations, ([label, declaration]) => ({
+    label,
+    kind: CompletionItemKind.Value,
+    data: declaration,
+  }));
+}
+
+function onCompletionResolveHandler(item: CompletionItem): CompletionItem {
+  return {
+    ...item,
+    detail: "Some detail",
+    documentation: "Some documentation",
+  };
+}
+
+function onDeclarationHandler(params: DeclarationParams): Location {
+  return {
+    uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
+    range: {
+      start: Position.create(0, 0),
+      end: Position.create(0, 5),
+    },
+  };
+}
+
+function onReferencesHandler(params: ReferenceParams): Location[] {
+  return [
+    {
+      uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
+      range: {
+        start: Position.create(0, 0),
+        end: Position.create(0, 5),
+      },
+    },
+  ];
+}
+
+export {
+  addWorkspaceFolder,
+  onCompletionHandler,
+  onCompletionResolveHandler,
+  onDeclarationHandler,
+  onDidChangeContentHandler,
+  onReferencesHandler,
+};

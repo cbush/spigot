@@ -10,10 +10,14 @@ import {
 } from "vscode-languageserver";
 
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { onCompletionHandler } from "./onCompletionHandler";
-import { onCompletionResolveHandler } from "./onCompletionResolveHandler";
-import { onDidChangeContentHandler } from "./onDidChangeContentHandler";
-import { addWorkspaceFolder } from "./workspace";
+import {
+  addWorkspaceFolder,
+  onCompletionHandler,
+  onCompletionResolveHandler,
+  onDeclarationHandler,
+  onReferencesHandler,
+  onDidChangeContentHandler,
+} from "./workspace";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -55,30 +59,6 @@ connection.onInitialize((params: InitializeParams) => {
   };
 });
 
-connection.onDeclaration(
-  (): Location => {
-    return {
-      uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
-      range: {
-        start: Position.create(0, 0),
-        end: Position.create(0, 5),
-      },
-    };
-  }
-);
-
-connection.onReferences((): Location[] => {
-  return [
-    {
-      uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
-      range: {
-        start: Position.create(0, 0),
-        end: Position.create(0, 5),
-      },
-    },
-  ];
-});
-
 connection.onInitialized(() => {
   workspaceFolders.forEach(addWorkspaceFolder);
 });
@@ -98,6 +78,10 @@ connection.onCompletion(onCompletionHandler);
 // This handler resolves additional information for the item selected in
 // the completion list.
 connection.onCompletionResolve(onCompletionResolveHandler);
+
+connection.onDeclaration(onDeclarationHandler);
+
+connection.onReferences(onReferencesHandler);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
