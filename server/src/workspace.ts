@@ -19,6 +19,8 @@ import {
   CompletionItem,
   CompletionItemKind,
   TextDocumentChangeEvent,
+  DocumentLinkParams,
+  DocumentLink,
 } from "vscode-languageserver";
 import { URL } from "url";
 import globby = require("globby");
@@ -138,7 +140,7 @@ function findLabels(textDocument: TextDocument) {
           start: textDocument.positionAt(m.index),
           end: textDocument.positionAt(m.index + m[0].length),
         },
-        message: `Duplicate label: ${label}.`,
+        message: `Duplicate label: ${label}`,
         source: "snoot",
       };
       diagnostics.push(diagnostic);
@@ -245,9 +247,10 @@ function onCompletionResolveHandler(item: CompletionItem): CompletionItem {
   };
 }
 
-function onDeclarationHandler(params: DeclarationParams): Location | null {
-  const { uri } = params.textDocument;
-
+function findEntityAtPosition(
+  uri: DocumentUri,
+  position: Position
+): Entity | null {
   const document = documents.get(uri);
   if (!document) {
     return null;
@@ -258,15 +261,21 @@ function onDeclarationHandler(params: DeclarationParams): Location | null {
     return null;
   }
 
-  const offset = document.offsetAt(params.position);
+  const offset = document.offsetAt(position);
 
   // Find an entity that is near the cursor
-  const entity = entitiesInDocument.find(({ location }) => {
-    const { range } = location;
-    const start = document.offsetAt(range.start);
-    const end = document.offsetAt(range.end);
-    return start <= offset && offset < end;
-  });
+  return (
+    entitiesInDocument.find(({ location }) => {
+      const { range } = location;
+      const start = document.offsetAt(range.start);
+      const end = document.offsetAt(range.end);
+      return start <= offset && offset < end;
+    }) ?? null
+  );
+}
+
+function onDeclarationHandler(params: DeclarationParams): Location | null {
+  const entity = findEntityAtPosition(params.textDocument.uri, params.position);
 
   if (!entity) {
     return null;
@@ -293,11 +302,34 @@ function onReferencesHandler(params: ReferenceParams): Location[] | null {
   ];
 }
 
+function onDocumentLinksHandler(
+  params: DocumentLinkParams
+): DocumentLink[] | null {
+  const documentEntities = entitiesByDocument.get(params.textDocument.uri);
+
+  if (!documentEntities) {
+    return null;
+  }
+
+  return documentEntities
+    .filter((entity) => entity.type !== "decl" && declarations.has(entity.name))
+    .map((entity) => {
+      const { location } = declarations.get(entity.name)!;
+      return DocumentLink.create(
+        entity.location.range,
+        `${location.uri}#${location.range.start.line + 1}:${
+          location.range.start.character
+        }`
+      );
+    });
+}
+
 export {
   addWorkspaceFolder,
   onCompletionHandler,
   onCompletionResolveHandler,
   onDeclarationHandler,
   onDidChangeContentHandler,
+  onDocumentLinksHandler,
   onReferencesHandler,
 };

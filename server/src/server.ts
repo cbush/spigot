@@ -5,8 +5,8 @@ import {
   InitializeParams,
   TextDocumentSyncKind,
   WorkspaceFolder,
-  Location,
-  Position,
+  ServerCapabilities,
+  InitializeResult,
 } from "vscode-languageserver";
 
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -17,6 +17,7 @@ import {
   onDeclarationHandler,
   onReferencesHandler,
   onDidChangeContentHandler,
+  onDocumentLinksHandler,
 } from "./workspace";
 
 // Create a connection for the server, using Node's IPC as a transport.
@@ -34,30 +35,37 @@ export const clientCapabilities = {
   workspaceFolders: false,
 };
 
-connection.onInitialize((params: InitializeParams) => {
-  workspaceFolders = params.workspaceFolders || [];
+connection.onInitialize(
+  (params: InitializeParams): InitializeResult => {
+    workspaceFolders = params.workspaceFolders || [];
 
-  const { capabilities } = params;
+    const { capabilities } = params;
 
-  clientCapabilities.diagnosticRelatedInformation =
-    capabilities.textDocument?.publishDiagnostics?.relatedInformation ?? false;
+    clientCapabilities.diagnosticRelatedInformation =
+      capabilities.textDocument?.publishDiagnostics?.relatedInformation ??
+      false;
 
-  clientCapabilities.workspaceFolders =
-    capabilities.workspace?.workspaceFolders ?? false;
+    clientCapabilities.workspaceFolders =
+      capabilities.workspace?.workspaceFolders ?? false;
 
-  return {
-    capabilities: {
-      textDocumentSync: TextDocumentSyncKind.Incremental,
-      // Tell the client that this server supports code completion.
-      completionProvider: {
-        resolveProvider: true,
+    return {
+      capabilities: {
+        textDocumentSync: TextDocumentSyncKind.Incremental,
+        // Tell the client that this server supports code completion.
+        completionProvider: {
+          resolveProvider: true,
+        },
+        declarationProvider: true,
+        referencesProvider: true,
+        renameProvider: true,
+        documentLinkProvider: {
+          resolveProvider: false,
+          workDoneProgress: false,
+        },
       },
-      declarationProvider: true,
-      referencesProvider: true,
-      renameProvider: true,
-    },
-  };
-});
+    };
+  }
+);
 
 connection.onInitialized(() => {
   workspaceFolders.forEach(addWorkspaceFolder);
@@ -82,6 +90,8 @@ connection.onCompletionResolve(onCompletionResolveHandler);
 connection.onDeclaration(onDeclarationHandler);
 
 connection.onReferences(onReferencesHandler);
+
+connection.onDocumentLinks(onDocumentLinksHandler);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
