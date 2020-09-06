@@ -26,17 +26,27 @@ import { readFile } from "fs";
 import { connection } from "./server";
 
 type Name = string;
+type EntityType = "ref" | "decl";
 
-const declarations = new Map<Name, Location>();
-const declarationsByDocument = new Map<DocumentUri, Name[]>();
-const references = new Map<Name, Location[]>();
-const referencesByDocument = new Map<DocumentUri, Set<Name>>();
+interface Entity {
+  type: EntityType;
+  name: Name;
+  location: Location;
+}
+
+const declarations = new Map<Name, Entity>();
+const entitiesByDocument = new Map<DocumentUri, Entity[]>();
 const documents = new Map<DocumentUri, TextDocument>();
 
 function updateDocument(document: TextDocument) {
-  documents.set(document.uri, document);
-  findLabels(document);
-  findReferences(document);
+  const { uri } = document;
+
+  documents.set(uri, document);
+
+  deleteEntitiesForDocument(uri);
+  const declarations = findLabels(document);
+  const references = findReferences(document);
+  entitiesByDocument.set(uri, [...declarations, ...references]);
 }
 
 async function addWorkspaceFolder(folder: WorkspaceFolder) {
@@ -89,22 +99,26 @@ function isCommentedOut(textDocument: TextDocument, range: Range): boolean {
   return /\.\.\s/.test(lineUpToRange);
 }
 
+function deleteEntitiesForDocument(uri: DocumentUri) {
+  // Delete all existing entities previously found in this document
+  // in case declarations were removed entirely.
+  const previousEntities = entitiesByDocument.get(uri) ?? [];
+  previousEntities.forEach((entity) => {
+    if (entity.type === "decl") {
+      declarations.delete(entity.name);
+    }
+  });
+  entitiesByDocument.delete(uri);
+}
+
 function findLabels(textDocument: TextDocument) {
   let text = textDocument.getText();
   let pattern = /.. _([A-z-]+):/g;
   let m: RegExpExecArray | null;
 
-  // Delete all existing declarations previously found in this document
-  // in case declarations were removed entirely.
-  const previousDeclarations =
-    declarationsByDocument.get(textDocument.uri) ?? [];
+  const { uri } = textDocument;
 
-  previousDeclarations.forEach((declaration) => {
-    declarations.delete(declaration);
-  });
-  declarationsByDocument.delete(textDocument.uri);
-
-  const foundDeclarations: Name[] = [];
+  const found: Entity[] = [];
   const diagnostics: Diagnostic[] = [];
 
   while ((m = pattern.exec(text))) {
@@ -131,39 +145,29 @@ function findLabels(textDocument: TextDocument) {
       continue;
     }
 
-    declarations.set(label, {
-      uri: textDocument.uri,
-      range: {
-        start,
-        end,
+    const entity: Entity = {
+      name: label,
+      type: "decl",
+      location: {
+        uri,
+        range: {
+          start,
+          end,
+        },
       },
-    });
-    foundDeclarations.push(label);
+    };
+    declarations.set(label, entity);
+    found.push(entity);
   }
-  declarationsByDocument.set(textDocument.uri, foundDeclarations);
-
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+  return found;
 }
 
 function findReferences(textDocument: TextDocument) {
   const { uri } = textDocument;
 
-  // Delete all existing references previously found in this document
-  // in case references were removed entirely.
-  const previousReferences = referencesByDocument.get(uri);
-  if (previousReferences) {
-    // Strip this document's references from the main references list
-    previousReferences.forEach((label) => {
-      const locations = references
-        .get(label)!
-        .filter((location) => location.uri !== uri);
-      references.set(label, locations);
-    });
-    referencesByDocument.delete(uri);
-  }
-
   const text = textDocument.getText();
-  const foundReferences: Name[] = [];
+  const found: Entity[] = [];
   const diagnostics: Diagnostic[] = [];
 
   // :ref:`some text <label>`
@@ -199,22 +203,22 @@ function findReferences(textDocument: TextDocument) {
       continue;
     }
 
-    if (!references.has(label)) {
-      references.set(label, []);
-    }
+    const entity: Entity = {
+      name: label,
+      type: "ref",
+      location: {
+        uri,
+        range,
+      },
+    };
 
-    references.get(label)!.push({
-      uri,
-      range,
-    });
-
-    foundReferences.push(label);
+    found.push(entity);
   }
 
-  referencesByDocument.set(uri, new Set(foundReferences));
-
-  // Send the computed diagnostics to VSCode.
+  // Send the computed diagnostics to the client.
   connection.sendDiagnostics({ uri, diagnostics });
+
+  return found;
 }
 
 function onDidChangeContentHandler(
@@ -251,7 +255,7 @@ function onDeclarationHandler(params: DeclarationParams): Location {
   };
 }
 
-function onReferencesHandler(params: ReferenceParams): Location[] {
+function onReferencesHandler(params: ReferenceParams): Location[] | null {
   return [
     {
       uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
