@@ -37,6 +37,7 @@ interface Entity {
 }
 
 const declarations = new Map<Name, Entity>();
+const references = new Map<Name, Entity[]>();
 const entitiesByDocument = new Map<DocumentUri, Entity[]>();
 const documents = new Map<DocumentUri, TextDocument>();
 
@@ -108,7 +109,15 @@ function deleteEntitiesForDocument(uri: DocumentUri) {
   previousEntities.forEach((entity) => {
     if (entity.type === "decl") {
       declarations.delete(entity.name);
+      return;
     }
+    const refsInOtherFiles = references
+      .get(entity.name)
+      ?.filter((ref) => ref.location.uri !== uri);
+    if (!refsInOtherFiles) {
+      return;
+    }
+    references.set(uri, refsInOtherFiles);
   });
   entitiesByDocument.delete(uri);
 }
@@ -214,6 +223,10 @@ function findReferences(textDocument: TextDocument) {
       },
     };
 
+    if (!references.has(label)) {
+      references.set(label, []);
+    }
+    references.get(label)!.push(entity);
     found.push(entity);
   }
 
@@ -291,15 +304,19 @@ function onDeclarationHandler(params: DeclarationParams): Location | null {
 }
 
 function onReferencesHandler(params: ReferenceParams): Location[] | null {
-  return [
-    {
-      uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
-      range: {
-        start: Position.create(0, 0),
-        end: Position.create(0, 5),
-      },
-    },
-  ];
+  const entity = findEntityAtPosition(params.textDocument.uri, params.position);
+
+  if (!entity) {
+    return null;
+  }
+
+  const refs = references.get(entity.name);
+
+  if (!refs) {
+    return null;
+  }
+
+  return refs.map((ref) => ref.location);
 }
 
 function onDocumentLinksHandler(
