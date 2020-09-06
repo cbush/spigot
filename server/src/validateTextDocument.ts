@@ -1,16 +1,23 @@
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { clientCapabilities, connection } from "./server";
+import { connection } from "./server";
 import { declarations } from "./workspace";
+
 export async function validateTextDocument(
   textDocument: TextDocument
 ): Promise<void> {
-  let text = textDocument.getText();
-  let pattern = /:ref:`.*?<([A-z0-9-_]+)>`/gms;
+  const text = textDocument.getText();
+
+  // :ref:`some text <label>`
+  const labelAndTextPattern = /:ref:`[^<>]*?<([^`>]*?)>`/gms;
+
+  // :ref:`label`
+  const labelPattern = /:ref:`([^<>`]*?)`/gms;
+
   let m: RegExpExecArray | null;
 
-  let diagnostics: Diagnostic[] = [];
-  while ((m = pattern.exec(text))) {
+  const diagnostics: Diagnostic[] = [];
+  while ((m = labelAndTextPattern.exec(text) || labelPattern.exec(text))) {
     const label = m[1];
     if (declarations.has(label)) {
       continue;
@@ -23,7 +30,7 @@ export async function validateTextDocument(
         end: textDocument.positionAt(m.index + m[0].length),
       },
       message: `Unknown label: ${label}.`,
-      source: "ex",
+      source: "snoot",
     };
     diagnostics.push(diagnostic);
   }
