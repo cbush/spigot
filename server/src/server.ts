@@ -1,4 +1,3 @@
-import * as globby from "globby";
 import {
   createConnection,
   TextDocuments,
@@ -6,13 +5,15 @@ import {
   InitializeParams,
   TextDocumentSyncKind,
   WorkspaceFolder,
+  Location,
+  Position,
 } from "vscode-languageserver";
 
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { URL } from "url";
 import { onCompletionHandler } from "./onCompletionHandler";
 import { onCompletionResolveHandler } from "./onCompletionResolveHandler";
 import { onDidChangeContentHandler } from "./onDidChangeContentHandler";
+import { addWorkspaceFolder } from "./workspace";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -50,28 +51,36 @@ connection.onInitialize((params: InitializeParams) => {
       declarationProvider: true,
       referencesProvider: true,
       renameProvider: true,
-      workspace: {
-        workspaceFolders: { changeNotifications: true, supported: true },
-      },
     },
   };
 });
 
-connection.onInitialized(async () => {
-  workspaceFolders.forEach(async (folder) => {
-    const cwd = new URL(folder.uri).pathname;
+connection.onDeclaration(
+  (): Location => {
+    return {
+      uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
+      range: {
+        start: Position.create(0, 0),
+        end: Position.create(0, 5),
+      },
+    };
+  }
+);
 
-    // TODO: allow configuration
-    const sourceDirectory = "source/";
+connection.onReferences((): Location[] => {
+  return [
+    {
+      uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
+      range: {
+        start: Position.create(0, 0),
+        end: Position.create(0, 5),
+      },
+    },
+  ];
+});
 
-    const paths = await globby(sourceDirectory, {
-      onlyFiles: true,
-      expandDirectories: { extensions: ["txt", "yaml", "rst"] },
-      cwd,
-      followSymbolicLinks: false,
-      ignore: ["node_modules/", "build/"],
-    });
-  });
+connection.onInitialized(() => {
+  workspaceFolders.forEach(addWorkspaceFolder);
 });
 
 // The content of a text document has changed. This event is emitted

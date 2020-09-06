@@ -10,7 +10,7 @@ export function onCompletionHandler(
 ): CompletionItem[] {
   return Array.from(declarations, ([label, declaration]) => ({
     label,
-    kind: CompletionItemKind.Text,
+    kind: CompletionItemKind.Value,
     data: declaration,
   }));
 }
