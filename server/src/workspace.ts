@@ -12,6 +12,7 @@ import {
   Diagnostic,
   DiagnosticSeverity,
   Position,
+  Location,
 } from "vscode-languageserver";
 import { URL } from "url";
 import globby = require("globby");
@@ -19,19 +20,17 @@ import { readFile } from "fs";
 import { connection } from "./server";
 
 type Name = string;
-interface Declaration {
-  name: Name;
-  textDocument: TextDocument;
-  range: Range;
-}
 
-const declarations = new Map<Name, Declaration>();
+const declarations = new Map<Name, Location>();
 const declarationsByDocument = new Map<DocumentUri, Name[]>();
+const references = new Map<Name, Location[]>();
+const referencesByDocument = new Map<DocumentUri, Set<Name>>();
 const documents = new Map<DocumentUri, TextDocument>();
 
 function updateDocument(document: TextDocument) {
   documents.set(document.uri, document);
   findLabels(document);
+  findReferences(document);
 }
 
 async function addWorkspaceFolder(folder: WorkspaceFolder) {
@@ -97,6 +96,7 @@ function findLabels(textDocument: TextDocument) {
   previousDeclarations.forEach((declaration) => {
     declarations.delete(declaration);
   });
+  declarationsByDocument.delete(textDocument.uri);
 
   const foundDeclarations: Name[] = [];
   const diagnostics: Diagnostic[] = [];
@@ -126,8 +126,7 @@ function findLabels(textDocument: TextDocument) {
     }
 
     declarations.set(label, {
-      name: label,
-      textDocument,
+      uri: textDocument.uri,
       range: {
         start,
         end,
@@ -140,4 +139,76 @@ function findLabels(textDocument: TextDocument) {
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-export { addWorkspaceFolder, updateDocument, declarations };
+function findReferences(textDocument: TextDocument) {
+  const { uri } = textDocument;
+
+  // Delete all existing references previously found in this document
+  // in case references were removed entirely.
+  const previousReferences = referencesByDocument.get(uri);
+  if (previousReferences) {
+    // Strip this document's references from the main references list
+    previousReferences.forEach((label) => {
+      const locations = references
+        .get(label)!
+        .filter((location) => location.uri !== uri);
+      references.set(label, locations);
+    });
+    referencesByDocument.delete(uri);
+  }
+
+  const text = textDocument.getText();
+  const foundReferences: Name[] = [];
+  const diagnostics: Diagnostic[] = [];
+
+  // :ref:`some text <label>`
+  const labelAndTextPattern = /:ref:`[^<>]*?<([^`>]*?)>`/gms;
+
+  // :ref:`label`
+  const labelPattern = /:ref:`([^<>`]*?)`/gms;
+
+  let m: RegExpExecArray | null;
+
+  while ((m = labelAndTextPattern.exec(text) || labelPattern.exec(text))) {
+    const range = {
+      start: textDocument.positionAt(m.index),
+      end: textDocument.positionAt(m.index + m[0].length),
+    };
+
+    // Ignore commented lines
+    if (isCommentedOut(textDocument, range)) {
+      continue;
+    }
+
+    const label = m[1];
+
+    if (!declarations.has(label)) {
+      // Unknown label
+      let diagnostic: Diagnostic = {
+        severity: DiagnosticSeverity.Error,
+        range,
+        message: `Unknown label: ${label}.`,
+        source: "snoot",
+      };
+      diagnostics.push(diagnostic);
+      continue;
+    }
+
+    if (!references.has(label)) {
+      references.set(label, []);
+    }
+
+    references.get(label)!.push({
+      uri,
+      range,
+    });
+
+    foundReferences.push(label);
+  }
+
+  referencesByDocument.set(uri, new Set(foundReferences));
+
+  // Send the computed diagnostics to VSCode.
+  connection.sendDiagnostics({ uri, diagnostics });
+}
+
+export { addWorkspaceFolder, updateDocument, declarations, references };
