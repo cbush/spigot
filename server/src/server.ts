@@ -5,7 +5,6 @@ import {
   InitializeParams,
   TextDocumentSyncKind,
   WorkspaceFolder,
-  ServerCapabilities,
   InitializeResult,
 } from "vscode-languageserver";
 
@@ -71,10 +70,6 @@ connection.onInitialized(() => {
   workspaceFolders.forEach(addWorkspaceFolder);
 });
 
-// The content of a text document has changed. This event is emitted
-// when the text document first opened or when its content has changed.
-documents.onDidChangeContent(onDidChangeContentHandler);
-
 connection.onDidChangeWatchedFiles((_change) => {
   // Monitored files have change in VSCode
   connection.console.log("We received an file change event");
@@ -92,6 +87,10 @@ connection.onDeclaration(onDeclarationHandler);
 connection.onReferences(onReferencesHandler);
 
 connection.onDocumentLinks(onDocumentLinksHandler);
+
+// The content of a text document has changed. This event is emitted
+// when the text document first opened or when its content has changed.
+documents.onDidChangeContent(onDidChangeContentHandler);
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

@@ -17,5 +17,11 @@
     "vscode-languageserver": "^6.1.1",
     "vscode-languageserver-textdocument": "^1.0.1"
   },
-  "scripts": {}
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.13",
+    "jest": "^26.4.2"
+  }
 }

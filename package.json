@@ -56,14 +56,16 @@
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
-    "test": "sh ./scripts/e2e.sh"
+    "test": "jest"
   },
   "devDependencies": {
-    "@types/mocha": "^8.0.3",
-    "mocha": "^8.1.1",
+    "@babel/preset-typescript": "^7.10.4",
+    "@types/jest": "^26.0.13",
     "@types/node": "^12.12.0",
-    "eslint": "^6.4.0",
     "@typescript-eslint/parser": "^2.3.0",
+    "eslint": "^6.4.0",
+    "jest": "^26.4.2",
+    "ts-jest": "^26.3.0",
     "typescript": "^3.9.4"
   }
 }
