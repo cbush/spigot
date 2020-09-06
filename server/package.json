@@ -12,6 +12,8 @@
     "url": "https://github.com/cbush/snoot"
   },
   "dependencies": {
+    "@types/globby": "^9.1.0",
+    "globby": "^11.0.1",
     "vscode-languageserver": "^6.1.1",
     "vscode-languageserver-textdocument": "^1.0.1"
   },

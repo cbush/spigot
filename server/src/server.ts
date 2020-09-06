@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as globby from "globby";
 import {
   createConnection,
   TextDocuments,
@@ -24,18 +24,21 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 // The workspace folder this server is operating on
 let workspaceFolders: WorkspaceFolder[] = [];
 
-export let hasDiagnosticRelatedInformationCapability: boolean = false;
+export const clientCapabilities = {
+  diagnosticRelatedInformation: false,
+  workspaceFolders: false,
+};
 
 connection.onInitialize((params: InitializeParams) => {
   workspaceFolders = params.workspaceFolders || [];
 
   const { capabilities } = params;
 
-  hasDiagnosticRelatedInformationCapability = !!(
-    capabilities.textDocument &&
-    capabilities.textDocument.publishDiagnostics &&
-    capabilities.textDocument.publishDiagnostics.relatedInformation
-  );
+  clientCapabilities.diagnosticRelatedInformation =
+    capabilities.textDocument?.publishDiagnostics?.relatedInformation ?? false;
+
+  clientCapabilities.workspaceFolders =
+    capabilities.workspace?.workspaceFolders ?? false;
 
   return {
     capabilities: {
@@ -44,17 +47,29 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: {
         resolveProvider: true,
       },
+      declarationProvider: true,
+      referencesProvider: true,
+      renameProvider: true,
+      workspace: {
+        workspaceFolders: { changeNotifications: true, supported: true },
+      },
     },
   };
 });
 
-connection.onInitialized(() => {
-  const url = new URL(workspaceFolders[0].uri);
-  console.log("Readding dir", url.pathname);
+connection.onInitialized(async () => {
+  workspaceFolders.forEach(async (folder) => {
+    const cwd = new URL(folder.uri).pathname;
 
-  fs.readdir(url.pathname, (err, files) => {
-    files.forEach((file) => {
-      console.log(file);
+    // TODO: allow configuration
+    const sourceDirectory = "source/";
+
+    const paths = await globby(sourceDirectory, {
+      onlyFiles: true,
+      expandDirectories: { extensions: ["txt", "yaml", "rst"] },
+      cwd,
+      followSymbolicLinks: false,
+      ignore: ["node_modules/", "build/"],
     });
   });
 });

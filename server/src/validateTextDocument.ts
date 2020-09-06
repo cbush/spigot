@@ -1,9 +1,6 @@
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import {
-  hasDiagnosticRelatedInformationCapability,
-  connection,
-} from "./server";
+import { clientCapabilities, connection } from "./server";
 export async function validateTextDocument(
   textDocument: TextDocument
 ): Promise<void> {
@@ -23,7 +20,7 @@ export async function validateTextDocument(
       message: `${m[0]} is all uppercase.`,
       source: "ex",
     };
-    if (hasDiagnosticRelatedInformationCapability) {
+    if (clientCapabilities.diagnosticRelatedInformation) {
       diagnostic.relatedInformation = [
         {
           location: {

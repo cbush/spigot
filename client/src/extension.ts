@@ -19,7 +19,6 @@ import {
   TransportKind,
 } from "vscode-languageclient";
 
-let defaultClient: LanguageClient;
 let clients: Map<string, LanguageClient> = new Map();
 
 let _sortedWorkspaceFolders: string[] | undefined;
@@ -41,6 +40,7 @@ function sortedWorkspaceFolders(): string[] {
   }
   return _sortedWorkspaceFolders;
 }
+
 Workspace.onDidChangeWorkspaceFolders(
   () => (_sortedWorkspaceFolders = undefined)
 );
@@ -75,29 +75,7 @@ export function activate(context: ExtensionContext) {
     }
 
     let uri = document.uri;
-    // Untitled files go to a default client.
-    if (uri.scheme === "untitled" && !defaultClient) {
-      let debugOptions = { execArgv: ["--nolazy", "--inspect=6010"] };
-      let serverOptions = {
-        run: { module, transport: TransportKind.ipc },
-        debug: { module, transport: TransportKind.ipc, options: debugOptions },
-      };
-      let clientOptions: LanguageClientOptions = {
-        documentSelector: [
-          { scheme: "untitled", language: "restructuredtext" },
-        ],
-        diagnosticCollectionName: "lsp-multi-server-example",
-        outputChannel: outputChannel,
-      };
-      defaultClient = new LanguageClient(
-        "lsp-multi-server-example",
-        "LSP Multi Server Example",
-        serverOptions,
-        clientOptions
-      );
-      defaultClient.start();
-      return;
-    }
+
     let folder = Workspace.getWorkspaceFolder(uri);
     // Files outside a folder can't be handled. This might depend on the language.
     // Single file languages like JSON might handle files outside the workspace folders.
@@ -125,7 +103,7 @@ export function activate(context: ExtensionContext) {
         ],
         diagnosticCollectionName: "lsp-multi-server-example",
         workspaceFolder: folder,
-        outputChannel: outputChannel,
+        outputChannel,
       };
       let client = new LanguageClient(
         "lsp-multi-server-example",
@@ -153,9 +131,6 @@ export function activate(context: ExtensionContext) {
 
 export function deactivate(): Thenable<void> {
   let promises: Thenable<void>[] = [];
-  if (defaultClient) {
-    promises.push(defaultClient.stop());
-  }
   for (let client of clients.values()) {
     promises.push(client.stop());
   }
