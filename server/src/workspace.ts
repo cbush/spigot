@@ -245,14 +245,40 @@ function onCompletionResolveHandler(item: CompletionItem): CompletionItem {
   };
 }
 
-function onDeclarationHandler(params: DeclarationParams): Location {
-  return {
-    uri: "file:///Users/bush/docs/docs-realm/source/ios.txt",
-    range: {
-      start: Position.create(0, 0),
-      end: Position.create(0, 5),
-    },
-  };
+function onDeclarationHandler(params: DeclarationParams): Location | null {
+  const { uri } = params.textDocument;
+
+  const document = documents.get(uri);
+  if (!document) {
+    return null;
+  }
+
+  const entitiesInDocument = entitiesByDocument.get(uri);
+  if (!entitiesInDocument) {
+    return null;
+  }
+
+  const offset = document.offsetAt(params.position);
+
+  // Find an entity that is near the cursor
+  const entity = entitiesInDocument.find(({ location }) => {
+    const { range } = location;
+    const start = document.offsetAt(range.start);
+    const end = document.offsetAt(range.end);
+    return start <= offset && offset < end;
+  });
+
+  if (!entity) {
+    return null;
+  }
+
+  const declaration = declarations.get(entity.name);
+
+  if (!declaration) {
+    return null;
+  }
+
+  return declaration.location;
 }
 
 function onReferencesHandler(params: ReferenceParams): Location[] | null {
