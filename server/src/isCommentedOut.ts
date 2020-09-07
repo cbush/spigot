@@ -1,6 +1,7 @@
 import { Range } from "vscode-languageserver-textdocument";
 import { TextDocument, Position } from "vscode-languageserver";
 
+// Quick and dirty rST comment check. A proper parser can detect block comments, etc.
 export function isCommentedOut(
   textDocument: TextDocument,
   range: Range
@@ -15,6 +16,5 @@ export function isCommentedOut(
     end: range.start,
   });
 
-  // Quick and dirty rST comment check. A proper parser can detect block comments, etc.
   return /\.\.\s/.test(lineUpToRange);
 }

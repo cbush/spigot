@@ -2,12 +2,12 @@ import { TextDocument } from "vscode-languageserver";
 import { Entity } from "./Entity";
 import { isCommentedOut } from "./isCommentedOut";
 
+// Scans a document for a list of labels
 export function findLabels(textDocument: TextDocument): Entity[] {
-  let text = textDocument.getText();
-  let pattern = /\.\. _([A-z-]+):/g;
-  let m: RegExpExecArray | null;
-
   const { uri } = textDocument;
+  const text = textDocument.getText();
+  const pattern = /\.\. _([A-z-]+):/g;
+  let m: RegExpExecArray | null;
 
   const found: Entity[] = [];
 
