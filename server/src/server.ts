@@ -17,11 +17,14 @@ import {
   onReferencesHandler,
   onDidChangeContentHandler,
   onDocumentLinksHandler,
+  setReporter,
 } from "./workspace";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
-export const connection = createConnection(ProposedFeatures.all);
+const connection = createConnection(ProposedFeatures.all);
+
+setReporter(connection);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);

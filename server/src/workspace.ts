@@ -5,7 +5,7 @@
 // - "Go to declaration" for refs https://code.visualstudio.com/api/references/vscode-api#DeclarationProvider
 // - "Find references" for refs https://code.visualstudio.com/api/references/vscode-api#ReferenceProvider
 
-import { Range, DocumentUri } from "vscode-languageserver-textdocument";
+import { DocumentUri } from "vscode-languageserver-textdocument";
 import {
   TextDocument,
   WorkspaceFolder,
@@ -25,15 +25,15 @@ import {
 import { URL } from "url";
 import globby = require("globby");
 import { readFile } from "fs";
-import { connection } from "./server";
+import { findLabels } from "./findLabels";
+import { findReferences } from "./findReferences";
+import { Entity, Name } from "./Entity";
+import { Reporter } from "./Reporter";
 
-type Name = string;
-type EntityType = "ref" | "decl";
+let reporter: Reporter;
 
-interface Entity {
-  type: EntityType;
-  name: Name;
-  location: Location;
+function setReporter(r: Reporter) {
+  reporter = r;
 }
 
 const declarations = new Map<Name, Entity>();
@@ -47,9 +47,50 @@ function updateDocument(document: TextDocument) {
   documents.set(uri, document);
 
   deleteEntitiesForDocument(uri);
-  const declarations = findLabels(document);
-  const references = findReferences(document);
-  entitiesByDocument.set(uri, [...declarations, ...references]);
+
+  const labels = findLabels(document);
+
+  const diagnostics: Diagnostic[] = [];
+  labels.forEach((label) => {
+    if (declarations.has(label.name)) {
+      const diagnostic: Diagnostic = {
+        severity: DiagnosticSeverity.Error,
+        message: `Duplicate label: ${label}`,
+        source: "snoot",
+        range: label.location.range,
+      };
+      diagnostics.push(diagnostic);
+      return;
+    }
+
+    declarations.set(label.name, label);
+  });
+
+  const newReferences = findReferences(document);
+
+  newReferences.forEach((reference) => {
+    const label = reference.name;
+    if (!declarations.has(label)) {
+      // Unknown label
+      let diagnostic: Diagnostic = {
+        severity: DiagnosticSeverity.Error,
+        range: reference.location.range,
+        message: `Unknown label: ${label}.`,
+        source: "snoot",
+      };
+      diagnostics.push(diagnostic);
+      return;
+    }
+
+    if (!references.get(label)) {
+      references.set(label, []);
+    }
+    references.get(label)!.push(reference);
+  });
+
+  entitiesByDocument.set(uri, [...labels, ...newReferences]);
+
+  reporter.sendDiagnostics({ uri, diagnostics });
 }
 
 async function addWorkspaceFolder(folder: WorkspaceFolder) {
@@ -109,21 +150,6 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
   });
 }
 
-function isCommentedOut(textDocument: TextDocument, range: Range): boolean {
-  if (range.start.character === 0) {
-    return false;
-  }
-
-  // Check the line so far up to the label directive
-  const lineUpToRange = textDocument.getText({
-    start: Position.create(range.start.line, 0),
-    end: range.start,
-  });
-
-  // Quick and dirty rST comment check. A proper parser can detect block comments, etc.
-  return /\.\.\s/.test(lineUpToRange);
-}
-
 function deleteEntitiesForDocument(uri: DocumentUri) {
   // Delete all existing entities previously found in this document
   // in case declarations were removed entirely.
@@ -142,120 +168,6 @@ function deleteEntitiesForDocument(uri: DocumentUri) {
     references.set(uri, refsInOtherFiles);
   });
   entitiesByDocument.delete(uri);
-}
-
-function findLabels(textDocument: TextDocument) {
-  let text = textDocument.getText();
-  let pattern = /\.\. _([A-z-]+):/g;
-  let m: RegExpExecArray | null;
-
-  const { uri } = textDocument;
-
-  const found: Entity[] = [];
-  const diagnostics: Diagnostic[] = [];
-
-  while ((m = pattern.exec(text))) {
-    const start = textDocument.positionAt(m.index);
-    const end = textDocument.positionAt(m.index + m[0].length);
-
-    // Ignore commented lines
-    if (isCommentedOut(textDocument, { start, end })) {
-      continue;
-    }
-
-    const label = m[1];
-    if (declarations.has(label)) {
-      let diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        range: {
-          start: textDocument.positionAt(m.index),
-          end: textDocument.positionAt(m.index + m[0].length),
-        },
-        message: `Duplicate label: ${label}`,
-        source: "snoot",
-      };
-      diagnostics.push(diagnostic);
-      continue;
-    }
-
-    const entity: Entity = {
-      name: label,
-      type: "decl",
-      location: {
-        uri,
-        range: {
-          start,
-          end,
-        },
-      },
-    };
-    declarations.set(label, entity);
-    found.push(entity);
-  }
-  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-  return found;
-}
-
-function findReferences(textDocument: TextDocument) {
-  const { uri } = textDocument;
-
-  const text = textDocument.getText();
-  const found: Entity[] = [];
-  const diagnostics: Diagnostic[] = [];
-
-  // :ref:`some text <label>`
-  const labelAndTextPattern = /:ref:`[^<>]*?<([^`>]*?)>`/gms;
-
-  // :ref:`label`
-  const labelPattern = /:ref:`([^<>`]*?)`/gms;
-
-  let m: RegExpExecArray | null;
-
-  while ((m = labelAndTextPattern.exec(text) || labelPattern.exec(text))) {
-    const range = {
-      start: textDocument.positionAt(m.index),
-      end: textDocument.positionAt(m.index + m[0].length),
-    };
-
-    // Ignore commented lines
-    if (isCommentedOut(textDocument, range)) {
-      continue;
-    }
-
-    const label = m[1];
-
-    if (!declarations.has(label)) {
-      // Unknown label
-      let diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        range,
-        message: `Unknown label: ${label}.`,
-        source: "snoot",
-      };
-      diagnostics.push(diagnostic);
-      continue;
-    }
-
-    const entity: Entity = {
-      name: label,
-      type: "ref",
-      location: {
-        uri,
-        range,
-      },
-    };
-
-    if (!references.has(label)) {
-      references.set(label, []);
-    }
-    references.get(label)!.push(entity);
-    found.push(entity);
-  }
-
-  // Send the computed diagnostics to the client.
-  connection.sendDiagnostics({ uri, diagnostics });
-
-  return found;
 }
 
 function onDidChangeContentHandler(
@@ -371,4 +283,5 @@ export {
   onDidChangeContentHandler,
   onDocumentLinksHandler,
   onReferencesHandler,
+  setReporter,
 };
