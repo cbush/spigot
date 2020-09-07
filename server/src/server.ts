@@ -9,8 +9,6 @@ import {
   TextDocumentChangeEvent,
   TextDocumentPositionParams,
   CompletionItem,
-  Range,
-  CompletionItemKind,
   DeclarationParams,
   Location,
   ReferenceParams,
@@ -22,7 +20,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { Project } from "./Project";
 import { URL } from "url";
 import { readFile } from "fs";
-import { findEntityAtPosition } from "./findEntityAtPosition";
 
 class Server {
   workspaceFolders: WorkspaceFolder[] = [];
@@ -32,13 +29,6 @@ class Server {
     this.workspaceFolders = params.workspaceFolders || [];
 
     const { capabilities } = params;
-
-    const clientCapabilities = {
-      diagnosticRelatedInformation:
-        capabilities.textDocument?.publishDiagnostics?.relatedInformation ??
-        false,
-      workspaceFolders: capabilities.workspace?.workspaceFolders ?? false,
-    };
 
     // Report server capabilities to the client.
     return {
@@ -126,35 +116,7 @@ class Server {
   onCompletion = (
     textDocumentPosition: TextDocumentPositionParams
   ): CompletionItem[] | null => {
-    const document = this.project.getDocument(
-      textDocumentPosition.textDocument.uri
-    );
-    if (!document) {
-      return null;
-    }
-
-    const { position } = textDocumentPosition;
-
-    // Check if you are in a :ref:
-    const line = document.getText(
-      Range.create(
-        {
-          line: position.line - 1,
-          character: 0,
-        },
-        position
-      )
-    );
-
-    if (!/:ref:`[^`]*?/gms.test(line)) {
-      return null;
-    }
-
-    return this.project.declarations.map((declaration) => ({
-      label: declaration.name,
-      kind: CompletionItemKind.Reference,
-      data: declaration,
-    }));
+    return this.project.getCompletions(textDocumentPosition);
   };
 
   onCompletionResolve = (item: CompletionItem): CompletionItem => {
@@ -166,69 +128,15 @@ class Server {
   };
 
   onDeclaration = (params: DeclarationParams): Location | null => {
-    const entity = findEntityAtPosition(
-      this.project,
-      params.textDocument.uri,
-      params.position
-    );
-
-    if (!entity) {
-      return null;
-    }
-
-    const declaration = this.project.getDeclaration(entity.name);
-
-    if (!declaration) {
-      return null;
-    }
-
-    return declaration.location;
+    return this.project.getDeclaration(params);
   };
 
   onReferences = (params: ReferenceParams): Location[] | null => {
-    const entity = findEntityAtPosition(
-      this.project,
-      params.textDocument.uri,
-      params.position
-    );
-
-    if (!entity) {
-      return null;
-    }
-
-    const refs = this.project.getReferences(entity.name);
-
-    if (!refs) {
-      return null;
-    }
-
-    return refs.map((ref) => ref.location);
+    return this.project.getReferences(params);
   };
 
   onDocumentLinks = (params: DocumentLinkParams): DocumentLink[] | null => {
-    const { project } = this;
-    const documentEntities = project.getEntitiesInDocument(
-      params.textDocument.uri
-    );
-
-    if (!documentEntities) {
-      return null;
-    }
-
-    return documentEntities
-      .filter(
-        (entity) =>
-          entity.type !== "decl" && project.getDeclaration(entity.name)
-      )
-      .map((entity) => {
-        const { location } = project.getDeclaration(entity.name)!;
-        return DocumentLink.create(
-          entity.location.range,
-          `${location.uri}#${location.range.start.line + 1}:${
-            location.range.start.character
-          }`
-        );
-      });
+    return this.project.getDocumentLinks(params);
   };
 }
 

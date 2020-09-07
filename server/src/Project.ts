@@ -1,71 +1,32 @@
 import {
   DocumentUri,
   TextDocument,
-  Diagnostic,
-  DiagnosticSeverity,
+  DeclarationParams,
+  Location,
+  ReferenceParams,
+  DocumentLinkParams,
+  DocumentLink,
+  TextDocumentPositionParams,
+  CompletionItem,
+  Range,
+  CompletionItemKind,
 } from "vscode-languageserver";
-import { Entity, Name } from "./Entity";
 import { Reporter } from "./Reporter";
-import { findLabels } from "./findLabels";
-import deepEqual = require("deep-equal");
-import { findReferences } from "./findReferences";
+import { Entities } from "./Entities";
+import { findEntityAtPosition } from "./findEntityAtPosition";
 
-function populateLabels(
-  project: Project,
-  document: TextDocument
-): Diagnostic[] {
-  const diagnostics: Diagnostic[] = [];
-  findLabels(document).forEach((label) => {
-    const existingDeclaration = project.getDeclaration(label.name);
-    if (
-      existingDeclaration &&
-      !deepEqual(existingDeclaration.location, label.location)
-    ) {
-      const diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        message: `Duplicate label: ${label.name}`,
-        source: "snoot",
-        range: label.location.range,
-      };
-      diagnostics.push(diagnostic);
-      return;
-    }
-    project.addEntity(label);
-  });
-  return diagnostics;
-}
-
-function populateReferences(
-  project: Project,
-  document: TextDocument
-): Diagnostic[] {
-  const diagnostics: Diagnostic[] = [];
-  findReferences(document).forEach((reference) => {
-    const label = reference.name;
-    if (!project.getDeclaration(label)) {
-      // Unknown label
-      let diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        range: reference.location.range,
-        message: `Unknown label: ${label}.`,
-        source: "snoot",
-      };
-      diagnostics.push(diagnostic);
-      return;
-    }
-    project.addEntity(reference);
-  });
-  return diagnostics;
-}
-
-// A project represents the documents, declarations and references in an open
+// A project represents the documents and entities in an open
 // workspace.
 export class Project {
   reporter: Reporter | null = null;
 
+  get entities(): Entities {
+    return this._entities;
+  }
+
   addDocument = (document: TextDocument) => {
     this._documents.set(document.uri, document);
-    populateLabels(this, document);
+    this._entities.addDocumentLabels(document);
   };
 
   getDocument = (uri: DocumentUri): TextDocument | undefined => {
@@ -76,18 +37,14 @@ export class Project {
     return this._documents.size;
   }
 
-  get declarations(): Entity[] {
-    return Array.from(this._declarations, ([_k, entity]) => entity);
-  }
-
   updateDocument = (document: TextDocument) => {
     const { uri } = document;
 
     this._documents.set(uri, document);
 
-    this.deleteEntitiesForDocument(uri);
-    const labelDiagnostics = populateLabels(this, document);
-    const referenceDiagnostics = populateReferences(this, document);
+    this._entities.deleteEntitiesForDocument(uri);
+    const labelDiagnostics = this._entities.addDocumentLabels(document);
+    const referenceDiagnostics = this._entities.addDocumentReferences(document);
     this.reporter?.sendDiagnostics({
       uri,
       diagnostics: [...labelDiagnostics, ...referenceDiagnostics],
@@ -95,70 +52,107 @@ export class Project {
   };
 
   removeDocument = (uri: DocumentUri): boolean => {
-    this.deleteEntitiesForDocument(uri);
+    this._entities.deleteEntitiesForDocument(uri);
     return this._documents.delete(uri);
   };
 
-  getEntitiesInDocument = (uri: DocumentUri): Entity[] | undefined => {
-    return this._entitiesByDocument.get(uri);
-  };
+  getDeclaration = (params: DeclarationParams): Location | null => {
+    const entity = findEntityAtPosition(
+      this._entities,
+      this.getDocument(params.textDocument.uri),
+      params.position
+    );
 
-  getDeclaration = (name: Name): Entity | undefined => {
-    return this._declarations.get(name);
-  };
-
-  getReferences = (name: Name): Entity[] | undefined => {
-    return this._references.get(name);
-  };
-
-  addEntity = (entity: Entity) => {
-    const { uri } = entity.location;
-    if (!this._entitiesByDocument.has(uri)) {
-      this._entitiesByDocument.set(uri, []);
+    if (!entity) {
+      return null;
     }
-    this._entitiesByDocument.get(uri)!.push(entity);
 
-    const { name } = entity;
-    if (entity.type === "decl") {
-      this._declarations.set(name, entity);
-    } else {
-      if (!this._references.get(name)) {
-        this._references.set(name, []);
-      }
-      this._references.get(name)!.push(entity);
+    const declaration = this._entities.getDeclaration(entity.name);
+
+    if (!declaration) {
+      return null;
     }
+
+    return declaration.location;
   };
 
-  private deleteEntitiesForDocument = (uri: DocumentUri): boolean => {
-    const entitiesByDocument = this._entitiesByDocument;
-    const declarations = this._declarations;
-    const references = this._references;
+  getReferences = (params: ReferenceParams): Location[] | null => {
+    const entity = findEntityAtPosition(
+      this._entities,
+      this.getDocument(params.textDocument.uri),
+      params.position
+    );
 
-    // Delete all existing entities previously found in this document
-    // in case declarations were removed entirely.
-    const previousEntities = entitiesByDocument.get(uri) ?? [];
-    previousEntities.forEach((entity) => {
-      if (entity.type === "decl") {
-        declarations.delete(entity.name);
-        return;
-      }
-      const refsInOtherFiles = references
-        .get(entity.name)
-        ?.filter((ref) => ref.location.uri !== uri);
-      if (!refsInOtherFiles) {
-        return;
-      }
-      if (refsInOtherFiles.length === 0) {
-        references.delete(entity.name);
-        return;
-      }
-      references.set(entity.name, refsInOtherFiles);
-    });
-    return entitiesByDocument.delete(uri);
+    if (!entity) {
+      return null;
+    }
+
+    const refs = this._entities.getReferences(entity.name);
+
+    if (!refs) {
+      return null;
+    }
+
+    return refs.map((ref) => ref.location);
   };
 
-  private _declarations = new Map<Name, Entity>();
-  private _references = new Map<Name, Entity[]>();
-  private _entitiesByDocument = new Map<DocumentUri, Entity[]>();
+  getCompletions = (
+    textDocumentPosition: TextDocumentPositionParams
+  ): CompletionItem[] | null => {
+    const document = this.getDocument(textDocumentPosition.textDocument.uri);
+    if (!document) {
+      return null;
+    }
+
+    const { position } = textDocumentPosition;
+
+    // Check if you are in a :ref:
+    const line = document.getText(
+      Range.create(
+        {
+          line: position.line - 1,
+          character: 0,
+        },
+        position
+      )
+    );
+
+    if (!/:ref:`[^`]*?/gms.test(line)) {
+      return null;
+    }
+
+    return this._entities.declarations.map((declaration) => ({
+      label: declaration.name,
+      kind: CompletionItemKind.Reference,
+      data: declaration,
+    }));
+  };
+
+  getDocumentLinks = (params: DocumentLinkParams): DocumentLink[] | null => {
+    const documentEntities = this._entities.getEntitiesInDocument(
+      params.textDocument.uri
+    );
+
+    if (!documentEntities) {
+      return null;
+    }
+
+    return documentEntities
+      .filter(
+        (entity) =>
+          entity.type !== "decl" && this._entities.getDeclaration(entity.name)
+      )
+      .map((entity) => {
+        const { location } = this._entities.getDeclaration(entity.name)!;
+        return DocumentLink.create(
+          entity.location.range,
+          `${location.uri}#${location.range.start.line + 1}:${
+            location.range.start.character
+          }`
+        );
+      });
+  };
+
   private _documents = new Map<DocumentUri, TextDocument>();
+  private _entities = new Entities();
 }

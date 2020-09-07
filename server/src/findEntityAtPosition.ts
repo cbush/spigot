@@ -1,19 +1,19 @@
-import { DocumentUri, Position } from "vscode-languageserver";
+import { DocumentUri, Position, TextDocument } from "vscode-languageserver";
 import { Entity } from "./Entity";
 import { Project } from "./Project";
+import { Entities } from "./Entities";
 
 // Finds an entity, if any, at the given position of the given document
 export function findEntityAtPosition(
-  project: Project,
-  uri: DocumentUri,
+  entities: Entities,
+  document: TextDocument | undefined,
   position: Position
 ): Entity | null {
-  const document = project.getDocument(uri);
   if (!document) {
     return null;
   }
 
-  const entitiesInDocument = project.getEntitiesInDocument(uri);
+  const entitiesInDocument = entities.getEntitiesInDocument(document.uri);
   if (!entitiesInDocument) {
     return null;
   }
