@@ -16,8 +16,8 @@ function populateLabels(
 ): Diagnostic[] {
   const declarations = project._declarations;
   const entitiesByDocument = project._entitiesByDocument;
-
   const diagnostics: Diagnostic[] = [];
+  const { uri } = document;
   findLabels(document).forEach((label) => {
     const existingDeclaration = declarations.get(label.name);
     if (
@@ -33,10 +33,10 @@ function populateLabels(
       diagnostics.push(diagnostic);
       return;
     }
-    if (!entitiesByDocument.has(label.name)) {
-      entitiesByDocument.set(label.name, []);
+    if (!entitiesByDocument.has(uri)) {
+      entitiesByDocument.set(uri, []);
     }
-    entitiesByDocument.get(label.name)!.push(label);
+    entitiesByDocument.get(uri)!.push(label);
     declarations.set(label.name, label);
   });
   return diagnostics;
@@ -50,6 +50,7 @@ function populateReferences(
   const references = project._references;
   const entitiesByDocument = project._entitiesByDocument;
   const diagnostics: Diagnostic[] = [];
+  const { uri } = document;
   findReferences(document).forEach((reference) => {
     const label = reference.name;
     if (!declarations.has(label)) {
@@ -64,10 +65,10 @@ function populateReferences(
       return;
     }
 
-    if (!entitiesByDocument.has(label)) {
-      entitiesByDocument.set(label, []);
+    if (!entitiesByDocument.has(uri)) {
+      entitiesByDocument.set(uri, []);
     }
-    entitiesByDocument.get(label)!.push(reference);
+    entitiesByDocument.get(uri)!.push(reference);
 
     if (!references.get(label)) {
       references.set(label, []);
@@ -99,7 +100,11 @@ function deleteEntitiesForDocument(
     if (!refsInOtherFiles) {
       return;
     }
-    references.set(uri, refsInOtherFiles);
+    if (refsInOtherFiles.length === 0) {
+      references.delete(entity.name);
+      return;
+    }
+    references.set(entity.name, refsInOtherFiles);
   });
   return entitiesByDocument.delete(uri);
 }
