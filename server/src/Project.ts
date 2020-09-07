@@ -58,7 +58,8 @@ function populateReferences(
   return diagnostics;
 }
 
-// A project represents the declarations and references in an open workspace.
+// A project represents the documents, declarations and references in an open
+// workspace.
 export class Project {
   reporter: Reporter | null = null;
 

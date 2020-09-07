@@ -2,6 +2,7 @@ import { DocumentUri, Position } from "vscode-languageserver";
 import { Entity } from "./Entity";
 import { Project } from "./Project";
 
+// Finds an entity, if any, at the given position of the given document
 export function findEntityAtPosition(
   project: Project,
   uri: DocumentUri,
