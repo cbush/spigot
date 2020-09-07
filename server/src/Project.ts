@@ -15,7 +15,6 @@ function populateLabels(
   document: TextDocument
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const { uri } = document;
   findLabels(document).forEach((label) => {
     const existingDeclaration = project.getDeclaration(label.name);
     if (
@@ -41,7 +40,6 @@ function populateReferences(
   document: TextDocument
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const { uri } = document;
   findReferences(document).forEach((reference) => {
     const label = reference.name;
     if (!project.getDeclaration(label)) {

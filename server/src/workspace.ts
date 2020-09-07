@@ -5,11 +5,9 @@
 // - "Go to declaration" for refs https://code.visualstudio.com/api/references/vscode-api#DeclarationProvider
 // - "Find references" for refs https://code.visualstudio.com/api/references/vscode-api#ReferenceProvider
 
-import { DocumentUri } from "vscode-languageserver-textdocument";
 import {
   TextDocument,
   WorkspaceFolder,
-  Position,
   Location,
   DeclarationParams,
   ReferenceParams,
@@ -19,11 +17,11 @@ import {
   TextDocumentChangeEvent,
   DocumentLinkParams,
   DocumentLink,
+  Range,
 } from "vscode-languageserver";
 import { URL } from "url";
 import globby = require("globby");
 import { readFile } from "fs";
-import { Entity, Name } from "./Entity";
 import { Reporter } from "./Reporter";
 import { Project } from "./Project";
 import { findEntityAtPosition } from "./findEntityAtPosition";
@@ -97,11 +95,33 @@ function onDidChangeContentHandler(
 }
 
 function onCompletionHandler(
-  _textDocumentPosition: TextDocumentPositionParams
-): CompletionItem[] {
+  textDocumentPosition: TextDocumentPositionParams
+): CompletionItem[] | null {
+  const document = project.getDocument(textDocumentPosition.textDocument.uri);
+  if (!document) {
+    return null;
+  }
+
+  const { position } = textDocumentPosition;
+
+  // Check if you are in a :ref:
+  const line = document.getText(
+    Range.create(
+      {
+        line: position.line - 1,
+        character: 0,
+      },
+      position
+    )
+  );
+
+  if (!/:ref:`[^`]*?/gms.test(line)) {
+    return null;
+  }
+
   return project.declarations.map((declaration) => ({
-    label: declaration.label,
-    kind: CompletionItemKind.Value,
+    label: declaration.name,
+    kind: CompletionItemKind.Reference,
     data: declaration,
   }));
 }
