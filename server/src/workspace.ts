@@ -99,8 +99,8 @@ function onDidChangeContentHandler(
 function onCompletionHandler(
   _textDocumentPosition: TextDocumentPositionParams
 ): CompletionItem[] {
-  return Array.from(project._declarations, ([label, declaration]) => ({
-    label,
+  return project.declarations.map((declaration) => ({
+    label: declaration.label,
     kind: CompletionItemKind.Value,
     data: declaration,
   }));

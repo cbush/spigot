@@ -90,5 +90,6 @@ This document has :ref:\`some-ref\` to another document.
   expect(project.getReferences("some-ref").length).toBe(1);
 
   project.removeDocument(document2.uri);
+  expect(project.documentCount).toBe(0);
   expect(project.getReferences("some-ref")).toBeUndefined();
 });
