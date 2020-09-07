@@ -32,23 +32,18 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 // The workspace folder this server is operating on
 let workspaceFolders: WorkspaceFolder[] = [];
 
-export const clientCapabilities = {
-  diagnosticRelatedInformation: false,
-  workspaceFolders: false,
-};
-
 connection.onInitialize(
   (params: InitializeParams): InitializeResult => {
     workspaceFolders = params.workspaceFolders || [];
 
     const { capabilities } = params;
 
-    clientCapabilities.diagnosticRelatedInformation =
-      capabilities.textDocument?.publishDiagnostics?.relatedInformation ??
-      false;
-
-    clientCapabilities.workspaceFolders =
-      capabilities.workspace?.workspaceFolders ?? false;
+    const clientCapabilities = {
+      diagnosticRelatedInformation:
+        capabilities.textDocument?.publishDiagnostics?.relatedInformation ??
+        false,
+      workspaceFolders: capabilities.workspace?.workspaceFolders ?? false,
+    };
 
     return {
       capabilities: {

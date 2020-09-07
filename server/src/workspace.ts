@@ -9,8 +9,6 @@ import { DocumentUri } from "vscode-languageserver-textdocument";
 import {
   TextDocument,
   WorkspaceFolder,
-  Diagnostic,
-  DiagnosticSeverity,
   Position,
   Location,
   DeclarationParams,
@@ -25,92 +23,15 @@ import {
 import { URL } from "url";
 import globby = require("globby");
 import { readFile } from "fs";
-import { findLabels } from "./findLabels";
-import { findReferences } from "./findReferences";
 import { Entity, Name } from "./Entity";
 import { Reporter } from "./Reporter";
-import deepEqual = require("deep-equal");
+import { Project } from "./Project";
+import { findEntityAtPosition } from "./findEntityAtPosition";
 
-let reporter: Reporter;
+const project = new Project();
 
 function setReporter(r: Reporter) {
-  reporter = r;
-}
-
-const declarations = new Map<Name, Entity>();
-const references = new Map<Name, Entity[]>();
-const entitiesByDocument = new Map<DocumentUri, Entity[]>();
-const documents = new Map<DocumentUri, TextDocument>();
-
-function populateLabels(document: TextDocument): Diagnostic[] {
-  const diagnostics: Diagnostic[] = [];
-  findLabels(document).forEach((label) => {
-    const existingDeclaration = declarations.get(label.name);
-    if (
-      existingDeclaration &&
-      !deepEqual(existingDeclaration.location, label.location)
-    ) {
-      const diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        message: `Duplicate label: ${label.name}`,
-        source: "snoot",
-        range: label.location.range,
-      };
-      diagnostics.push(diagnostic);
-      return;
-    }
-    if (!entitiesByDocument.has(label.name)) {
-      entitiesByDocument.set(label.name, []);
-    }
-    entitiesByDocument.get(label.name)!.push(label);
-    declarations.set(label.name, label);
-  });
-  return diagnostics;
-}
-
-function populateReferences(document: TextDocument): Diagnostic[] {
-  const diagnostics: Diagnostic[] = [];
-  findReferences(document).forEach((reference) => {
-    const label = reference.name;
-    if (!declarations.has(label)) {
-      // Unknown label
-      let diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        range: reference.location.range,
-        message: `Unknown label: ${label}.`,
-        source: "snoot",
-      };
-      diagnostics.push(diagnostic);
-      return;
-    }
-
-    if (!entitiesByDocument.has(label)) {
-      entitiesByDocument.set(label, []);
-    }
-    entitiesByDocument.get(label)!.push(reference);
-
-    if (!references.get(label)) {
-      references.set(label, []);
-    }
-    references.get(label)!.push(reference);
-  });
-  return diagnostics;
-}
-
-function updateDocument(document: TextDocument) {
-  const { uri } = document;
-
-  documents.set(uri, document);
-
-  deleteEntitiesForDocument(uri);
-
-  const labelDiagnostics = populateLabels(document);
-  const referenceDiagnostics = populateReferences(document);
-
-  reporter.sendDiagnostics({
-    uri,
-    diagnostics: [...labelDiagnostics, ...referenceDiagnostics],
-  });
+  project.reporter = r;
 }
 
 async function addWorkspaceFolder(folder: WorkspaceFolder) {
@@ -132,7 +53,7 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
       new Promise((resolve, reject) => {
         const fullPath = `${cwd}/${path}`;
         const uri = `file://${fullPath}`;
-        if (documents.has(uri)) {
+        if (project.getDocument(uri)) {
           console.log(`Already have document for ${uri} (before read)`);
           return resolve(null);
         }
@@ -141,7 +62,7 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
             console.error(`Failed to read ${fullPath}: ${err}`);
             return reject(err);
           }
-          if (documents.has(uri)) {
+          if (project.getDocument(uri)) {
             console.log(`Already have document for ${uri} (after read)`);
             return resolve(null);
           }
@@ -152,8 +73,7 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
             contents
           );
 
-          // Initial load of labels to avoid undefined references later
-          populateLabels(document);
+          project.addDocument(document);
 
           return resolve(document);
         });
@@ -165,41 +85,21 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
       if (!document) {
         return;
       }
-      updateDocument(document);
+      project.updateDocument(document);
     });
   });
-}
-
-function deleteEntitiesForDocument(uri: DocumentUri) {
-  // Delete all existing entities previously found in this document
-  // in case declarations were removed entirely.
-  const previousEntities = entitiesByDocument.get(uri) ?? [];
-  previousEntities.forEach((entity) => {
-    if (entity.type === "decl") {
-      declarations.delete(entity.name);
-      return;
-    }
-    const refsInOtherFiles = references
-      .get(entity.name)
-      ?.filter((ref) => ref.location.uri !== uri);
-    if (!refsInOtherFiles) {
-      return;
-    }
-    references.set(uri, refsInOtherFiles);
-  });
-  entitiesByDocument.delete(uri);
 }
 
 function onDidChangeContentHandler(
   change: TextDocumentChangeEvent<TextDocument>
 ) {
-  updateDocument(change.document);
+  project.updateDocument(change.document);
 }
 
 function onCompletionHandler(
   _textDocumentPosition: TextDocumentPositionParams
 ): CompletionItem[] {
-  return Array.from(declarations, ([label, declaration]) => ({
+  return Array.from(project._declarations, ([label, declaration]) => ({
     label,
     kind: CompletionItemKind.Value,
     data: declaration,
@@ -214,41 +114,18 @@ function onCompletionResolveHandler(item: CompletionItem): CompletionItem {
   };
 }
 
-function findEntityAtPosition(
-  uri: DocumentUri,
-  position: Position
-): Entity | null {
-  const document = documents.get(uri);
-  if (!document) {
-    return null;
-  }
-
-  const entitiesInDocument = entitiesByDocument.get(uri);
-  if (!entitiesInDocument) {
-    return null;
-  }
-
-  const offset = document.offsetAt(position);
-
-  // Find an entity that is near the cursor
-  return (
-    entitiesInDocument.find(({ location }) => {
-      const { range } = location;
-      const start = document.offsetAt(range.start);
-      const end = document.offsetAt(range.end);
-      return start <= offset && offset < end;
-    }) ?? null
-  );
-}
-
 function onDeclarationHandler(params: DeclarationParams): Location | null {
-  const entity = findEntityAtPosition(params.textDocument.uri, params.position);
+  const entity = findEntityAtPosition(
+    project,
+    params.textDocument.uri,
+    params.position
+  );
 
   if (!entity) {
     return null;
   }
 
-  const declaration = declarations.get(entity.name);
+  const declaration = project.getDeclaration(entity.name);
 
   if (!declaration) {
     return null;
@@ -258,13 +135,17 @@ function onDeclarationHandler(params: DeclarationParams): Location | null {
 }
 
 function onReferencesHandler(params: ReferenceParams): Location[] | null {
-  const entity = findEntityAtPosition(params.textDocument.uri, params.position);
+  const entity = findEntityAtPosition(
+    project,
+    params.textDocument.uri,
+    params.position
+  );
 
   if (!entity) {
     return null;
   }
 
-  const refs = references.get(entity.name);
+  const refs = project.getReferences(entity.name);
 
   if (!refs) {
     return null;
@@ -276,16 +157,20 @@ function onReferencesHandler(params: ReferenceParams): Location[] | null {
 function onDocumentLinksHandler(
   params: DocumentLinkParams
 ): DocumentLink[] | null {
-  const documentEntities = entitiesByDocument.get(params.textDocument.uri);
+  const documentEntities = project.getEntitiesInDocument(
+    params.textDocument.uri
+  );
 
   if (!documentEntities) {
     return null;
   }
 
   return documentEntities
-    .filter((entity) => entity.type !== "decl" && declarations.has(entity.name))
+    .filter(
+      (entity) => entity.type !== "decl" && project.getDeclaration(entity.name)
+    )
     .map((entity) => {
-      const { location } = declarations.get(entity.name)!;
+      const { location } = project.getDeclaration(entity.name)!;
       return DocumentLink.create(
         entity.location.range,
         `${location.uri}#${location.range.start.line + 1}:${
