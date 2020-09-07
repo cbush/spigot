@@ -34,6 +34,7 @@ test("finds a label-only reference", () => {
     ":ref:`one-reference`"
   );
   expect(references[0].name).toBe("one-reference");
+  expect(references[0].type).toBe("ref");
 });
 
 test("finds a reference with text", () => {
@@ -118,4 +119,21 @@ This document also has things that look like a reference :ref: :REF:\`nope\` but
   expect(references[4].name).toBe("multiline");
   expect(document.getText(references[4].location.range)).toBe(`:ref:\`multiline
 references <multiline>\``);
+});
+
+test("ignores commented-out references", () => {
+  const document = TextDocument.create(
+    "test",
+    "",
+    0,
+    `
+.. This document has :ref:\`one-reference\` but it's commented out
+This document has :ref:\`an-uncommented-reference\` as well
+    .. :ref:\`this one <one-reference>\` is also commented out
+`
+  );
+
+  const references = findReferences(document);
+  expect(references.length).toBe(1);
+  expect(references[0].name).toBe("an-uncommented-reference");
 });
