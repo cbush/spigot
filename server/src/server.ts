@@ -74,8 +74,8 @@ connection.onInitialized(() => {
 });
 
 connection.onDidChangeWatchedFiles((_change) => {
-  // Monitored files have change in VSCode
-  connection.console.log("We received an file change event");
+  // Monitored files have change
+  connection.console.log("We received a file change event");
 });
 
 // This handler provides the initial list of the completion items.

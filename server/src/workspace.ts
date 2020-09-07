@@ -29,6 +29,7 @@ import { findLabels } from "./findLabels";
 import { findReferences } from "./findReferences";
 import { Entity, Name } from "./Entity";
 import { Reporter } from "./Reporter";
+import deepEqual = require("deep-equal");
 
 let reporter: Reporter;
 
@@ -41,34 +42,35 @@ const references = new Map<Name, Entity[]>();
 const entitiesByDocument = new Map<DocumentUri, Entity[]>();
 const documents = new Map<DocumentUri, TextDocument>();
 
-function updateDocument(document: TextDocument) {
-  const { uri } = document;
-
-  documents.set(uri, document);
-
-  deleteEntitiesForDocument(uri);
-
-  const labels = findLabels(document);
-
+function populateLabels(document: TextDocument): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  labels.forEach((label) => {
-    if (declarations.has(label.name)) {
+  findLabels(document).forEach((label) => {
+    const existingDeclaration = declarations.get(label.name);
+    if (
+      existingDeclaration &&
+      !deepEqual(existingDeclaration.location, label.location)
+    ) {
       const diagnostic: Diagnostic = {
         severity: DiagnosticSeverity.Error,
-        message: `Duplicate label: ${label}`,
+        message: `Duplicate label: ${label.name}`,
         source: "snoot",
         range: label.location.range,
       };
       diagnostics.push(diagnostic);
       return;
     }
-
+    if (!entitiesByDocument.has(label.name)) {
+      entitiesByDocument.set(label.name, []);
+    }
+    entitiesByDocument.get(label.name)!.push(label);
     declarations.set(label.name, label);
   });
+  return diagnostics;
+}
 
-  const newReferences = findReferences(document);
-
-  newReferences.forEach((reference) => {
+function populateReferences(document: TextDocument): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  findReferences(document).forEach((reference) => {
     const label = reference.name;
     if (!declarations.has(label)) {
       // Unknown label
@@ -82,15 +84,33 @@ function updateDocument(document: TextDocument) {
       return;
     }
 
+    if (!entitiesByDocument.has(label)) {
+      entitiesByDocument.set(label, []);
+    }
+    entitiesByDocument.get(label)!.push(reference);
+
     if (!references.get(label)) {
       references.set(label, []);
     }
     references.get(label)!.push(reference);
   });
+  return diagnostics;
+}
 
-  entitiesByDocument.set(uri, [...labels, ...newReferences]);
+function updateDocument(document: TextDocument) {
+  const { uri } = document;
 
-  reporter.sendDiagnostics({ uri, diagnostics });
+  documents.set(uri, document);
+
+  deleteEntitiesForDocument(uri);
+
+  const labelDiagnostics = populateLabels(document);
+  const referenceDiagnostics = populateReferences(document);
+
+  reporter.sendDiagnostics({
+    uri,
+    diagnostics: [...labelDiagnostics, ...referenceDiagnostics],
+  });
 }
 
 async function addWorkspaceFolder(folder: WorkspaceFolder) {
@@ -133,7 +153,7 @@ async function addWorkspaceFolder(folder: WorkspaceFolder) {
           );
 
           // Initial load of labels to avoid undefined references later
-          findLabels(document);
+          populateLabels(document);
 
           return resolve(document);
         });
