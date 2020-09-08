@@ -1,7 +1,7 @@
 import { Location } from "vscode-languageserver";
 
 export type Name = string;
-export type EntityType = "ref" | "decl";
+export type EntityType = "rst.role.ref" | "rst.label" | "rst.directive.include";
 
 export interface Entity {
   type: EntityType;

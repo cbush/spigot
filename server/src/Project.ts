@@ -125,7 +125,7 @@ export class Project {
 
     return this._entities.declarations.map((declaration) => ({
       label: declaration.name,
-      kind: CompletionItemKind.Reference,
+      kind: CompletionItemKind.Value,
       data: declaration,
     }));
   };
@@ -142,7 +142,8 @@ export class Project {
     return documentEntities
       .filter(
         (entity) =>
-          entity.type !== "decl" && this._entities.getDeclaration(entity.name)
+          entity.type !== "rst.label" &&
+          this._entities.getDeclaration(entity.name)
       )
       .map((entity) => {
         const { location } = this._entities.getDeclaration(entity.name)!;

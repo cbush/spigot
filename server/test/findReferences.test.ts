@@ -34,7 +34,7 @@ test("finds a label-only reference", () => {
     ":ref:`one-reference`"
   );
   expect(references[0].name).toBe("one-reference");
-  expect(references[0].type).toBe("ref");
+  expect(references[0].type).toBe("rst.role.ref");
 });
 
 test("finds a reference with text", () => {

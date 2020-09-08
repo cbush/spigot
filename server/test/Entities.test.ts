@@ -12,7 +12,7 @@ test("can add entities", () => {
       },
     },
     name: "some-ref",
-    type: "decl",
+    type: "rst.label",
   });
   expect(diagnostics).toBeUndefined();
   expect(entities.size).toBe(1);
@@ -29,7 +29,7 @@ test("can add entities", () => {
       },
     },
     name: "some-ref",
-    type: "ref",
+    type: "rst.role.ref",
   });
   expect(diagnostics).toBeUndefined();
   expect(entities.size).toBe(2);
@@ -125,7 +125,7 @@ test("can't remove unknown entity", () => {
       },
     },
     name: "not-a-ref",
-    type: "ref",
+    type: "rst.role.ref",
   });
   expect(result).toBe(false);
 });

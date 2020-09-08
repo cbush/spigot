@@ -36,7 +36,7 @@ test("finds labels", () => {
   expect(labels[0].location.range.start.character).toBe(0);
   expect(document.getText(labels[0].location.range)).toBe(".. _its-a-label:");
   expect(labels[0].name).toBe("its-a-label");
-  expect(labels[0].type).toBe("decl");
+  expect(labels[0].type).toBe("rst.label");
 });
 
 test("ignores commented-out labels", () => {

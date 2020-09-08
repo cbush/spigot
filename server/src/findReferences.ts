@@ -13,6 +13,6 @@ export function findReferences(document: TextDocument): Entity[] {
       // :ref:`label`
       /:ref:`([^<>`]*?)`/gms,
     ],
-    "ref"
+    "rst.role.ref"
   );
 }

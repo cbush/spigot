@@ -68,7 +68,7 @@ export class Entities {
   // Adds the entity to the collection or reports an error.
   add = (entity: Entity): Diagnostic | undefined => {
     const { location, name, type } = entity;
-    if (type === "decl") {
+    if (type === "rst.label") {
       const existingDeclaration = this.getDeclaration(name);
       if (
         existingDeclaration &&
@@ -113,7 +113,7 @@ export class Entities {
   };
 
   remove = (entity: Entity): boolean => {
-    if (entity.type === "decl") {
+    if (entity.type === "rst.label") {
       return this._declarations.delete(entity.name);
     }
 
