@@ -83,7 +83,7 @@ export class Entities {
           relatedInformation: [
             {
               location: existingDeclaration.location,
-              message: "Declared here",
+              message: "First declared here",
             },
           ],
         };

@@ -14,6 +14,10 @@ import {
   ReferenceParams,
   DocumentLinkParams,
   DocumentLink,
+  CodeActionParams,
+  CodeAction,
+  ExecuteCommandParams,
+  CodeActionKind,
 } from "vscode-languageserver";
 import globby = require("globby");
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -46,8 +50,11 @@ class Server {
         renameProvider: true,
         documentLinkProvider: {
           resolveProvider: false,
-          workDoneProgress: false,
         },
+        codeActionProvider: {
+          codeActionKinds: [CodeActionKind.QuickFix],
+        },
+        executeCommandProvider: { commands: [] },
       },
     };
   };
@@ -148,6 +155,13 @@ class Server {
   onDocumentLinks = (params: DocumentLinkParams): DocumentLink[] | null => {
     return this.project.getDocumentLinks(params);
   };
+
+  onCodeAction = (_params: CodeActionParams): CodeAction[] | null => {
+    // TODO
+    return null;
+  };
+
+  onExecuteCommand = (_params: ExecuteCommandParams): void => {};
 }
 
 // Create a connection for the server, using Node's IPC as a transport.
@@ -179,6 +193,12 @@ connection.onReferences(server.onReferences);
 
 // This handler provides the links in a document.
 connection.onDocumentLinks(server.onDocumentLinks);
+
+// This handler provides options for the code action menu (light bulb)
+connection.onCodeAction(server.onCodeAction);
+
+// This handler provides the commands available to the code action menu
+connection.onExecuteCommand(server.onExecuteCommand);
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
