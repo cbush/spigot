@@ -97,12 +97,10 @@ class Server {
             );
 
             const diagnostics = project.addDocument(document);
-            if (diagnostics.length > 0) {
-              this.connection.sendDiagnostics({
-                uri: document.uri,
-                diagnostics,
-              });
-            }
+            this.connection.sendDiagnostics({
+              uri: document.uri,
+              diagnostics,
+            });
             return resolve(document);
           });
         })

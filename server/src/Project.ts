@@ -12,7 +12,6 @@ import {
   CompletionItemKind,
   Diagnostic,
 } from "vscode-languageserver";
-import { Reporter } from "./Reporter";
 import { Entities } from "./Entities";
 import { findEntityAtPosition } from "./findEntityAtPosition";
 

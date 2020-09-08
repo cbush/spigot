@@ -80,6 +80,12 @@ export class Entities {
           message: `Duplicate label: ${name}`,
           source: "snoot",
           range: location.range,
+          relatedInformation: [
+            {
+              location: existingDeclaration.location,
+              message: "Declared here",
+            },
+          ],
         };
       }
       this._declarations.set(name, entity);
