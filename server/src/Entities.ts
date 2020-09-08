@@ -6,7 +6,6 @@ import {
 } from "vscode-languageserver";
 import deepEqual = require("deep-equal");
 import { Entity, Name } from "./Entity";
-import { findEntities } from "./findEntities";
 import { findLabels } from "./findLabels";
 import { findReferences } from "./findReferences";
 
@@ -14,6 +13,10 @@ import { findReferences } from "./findReferences";
 export class Entities {
   get declarations(): Entity[] {
     return Array.from(this._declarations, ([_k, entity]) => entity);
+  }
+
+  get size(): number {
+    return this._declarations.size + this._references.size;
   }
 
   getEntitiesInDocument = (uri: DocumentUri): Entity[] | undefined => {
@@ -56,39 +59,14 @@ export class Entities {
 
   // Delete all existing entities previously found in this document
   // in case declarations were removed entirely.
-  deleteEntitiesForDocument = (uri: DocumentUri): boolean => {
-    const entitiesByDocument = this._entitiesByDocument;
-    const declarations = this._declarations;
-    const references = this._references;
-
-    const previousEntities = entitiesByDocument.get(uri) ?? [];
-    previousEntities.forEach((entity) => {
-      if (entity.type === "decl") {
-        declarations.delete(entity.name);
-        return;
-      }
-
-      const refsInOtherFiles = references
-        .get(entity.name)
-        ?.filter((ref) => ref.location.uri !== uri);
-      if (!refsInOtherFiles) {
-        return;
-      }
-      if (refsInOtherFiles.length === 0) {
-        // Last reference in the entities collection.
-        // Remove the entry entirely.
-        references.delete(entity.name);
-        return;
-      }
-
-      // Replace the references array without this file's references.
-      references.set(entity.name, refsInOtherFiles);
-    });
-    return entitiesByDocument.delete(uri);
+  onDocumentRemoved = (uri: DocumentUri): boolean => {
+    const previousEntities = this._entitiesByDocument.get(uri) ?? [];
+    previousEntities.forEach(this.remove);
+    return this._entitiesByDocument.delete(uri);
   };
 
   // Adds the entity to the collection or reports an error.
-  private add = (entity: Entity): Diagnostic | undefined => {
+  add = (entity: Entity): Diagnostic | undefined => {
     const { location, name, type } = entity;
     if (type === "decl") {
       const existingDeclaration = this.getDeclaration(name);
@@ -111,7 +89,7 @@ export class Entities {
         return {
           severity: DiagnosticSeverity.Error,
           range: entity.location.range,
-          message: `Unknown label: ${name}.`,
+          message: `Unknown label: ${name}`,
           source: "snoot",
         };
       }
@@ -126,6 +104,33 @@ export class Entities {
       this._entitiesByDocument.set(uri, []);
     }
     this._entitiesByDocument.get(uri)!.push(entity);
+  };
+
+  remove = (entity: Entity): boolean => {
+    if (entity.type === "decl") {
+      return this._declarations.delete(entity.name);
+    }
+
+    const { uri } = entity.location;
+
+    const refsInOtherFiles = this._references
+      .get(entity.name)
+      ?.filter((ref) => ref.location.uri !== uri);
+
+    if (!refsInOtherFiles) {
+      return false;
+    }
+
+    if (refsInOtherFiles.length === 0) {
+      // Last reference in the entities collection.
+      // Remove the entry entirely.
+      this._references.delete(entity.name);
+      return true;
+    }
+
+    // Replace the references array without this file's references.
+    this._references.set(entity.name, refsInOtherFiles);
+    return true;
   };
 
   private _declarations = new Map<Name, Entity>();

@@ -10,6 +10,7 @@ import {
   CompletionItem,
   Range,
   CompletionItemKind,
+  Diagnostic,
 } from "vscode-languageserver";
 import { Reporter } from "./Reporter";
 import { Entities } from "./Entities";
@@ -18,15 +19,9 @@ import { findEntityAtPosition } from "./findEntityAtPosition";
 // A project represents the documents and entities in an open
 // workspace.
 export class Project {
-  reporter: Reporter | null = null;
-
-  get entities(): Entities {
-    return this._entities;
-  }
-
-  addDocument = (document: TextDocument) => {
+  addDocument = (document: TextDocument): Diagnostic[] => {
     this._documents.set(document.uri, document);
-    this._entities.addDocumentLabels(document);
+    return this._entities.addDocumentLabels(document);
   };
 
   getDocument = (uri: DocumentUri): TextDocument | undefined => {
@@ -37,22 +32,19 @@ export class Project {
     return this._documents.size;
   }
 
-  updateDocument = (document: TextDocument) => {
+  updateDocument = (document: TextDocument): Diagnostic[] => {
     const { uri } = document;
 
     this._documents.set(uri, document);
 
-    this._entities.deleteEntitiesForDocument(uri);
+    this._entities.onDocumentRemoved(uri);
     const labelDiagnostics = this._entities.addDocumentLabels(document);
     const referenceDiagnostics = this._entities.addDocumentReferences(document);
-    this.reporter?.sendDiagnostics({
-      uri,
-      diagnostics: [...labelDiagnostics, ...referenceDiagnostics],
-    });
+    return [...labelDiagnostics, ...referenceDiagnostics];
   };
 
   removeDocument = (uri: DocumentUri): boolean => {
-    this._entities.deleteEntitiesForDocument(uri);
+    this._entities.onDocumentRemoved(uri);
     return this._documents.delete(uri);
   };
 
@@ -77,6 +69,7 @@ export class Project {
   };
 
   getReferences = (params: ReferenceParams): Location[] | null => {
+    const { includeDeclaration } = params.context;
     const entity = findEntityAtPosition(
       this._entities,
       this.getDocument(params.textDocument.uri),
@@ -87,13 +80,23 @@ export class Project {
       return null;
     }
 
+    const declaration = includeDeclaration
+      ? this._entities.getDeclaration(entity.name)
+      : undefined;
+
     const refs = this._entities.getReferences(entity.name);
 
     if (!refs) {
-      return null;
+      return declaration ? [declaration.location] : null;
     }
 
-    return refs.map((ref) => ref.location);
+    const locations = refs.map((ref) => ref.location);
+
+    if (declaration) {
+      locations.push(declaration.location);
+    }
+
+    return locations;
   };
 
   getCompletions = (

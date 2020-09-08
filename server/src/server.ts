@@ -20,15 +20,19 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { Project } from "./Project";
 import { URL } from "url";
 import { readFile } from "fs";
+import { Reporter } from "./Reporter";
 
 class Server {
+  connection: Reporter;
   workspaceFolders: WorkspaceFolder[] = [];
   project = new Project();
 
+  constructor(connection: Reporter) {
+    this.connection = connection;
+  }
+
   onInitialize = (params: InitializeParams): InitializeResult => {
     this.workspaceFolders = params.workspaceFolders || [];
-
-    const { capabilities } = params;
 
     // Report server capabilities to the client.
     return {
@@ -92,8 +96,13 @@ class Server {
               contents
             );
 
-            project.addDocument(document);
-
+            const diagnostics = project.addDocument(document);
+            if (diagnostics.length > 0) {
+              this.connection.sendDiagnostics({
+                uri: document.uri,
+                diagnostics,
+              });
+            }
             return resolve(document);
           });
         })
@@ -104,13 +113,16 @@ class Server {
         if (!document) {
           return;
         }
-        project.updateDocument(document);
+        const diagnostics = project.updateDocument(document);
+        this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
       });
     });
   };
 
   onDidChangeContent = (change: TextDocumentChangeEvent<TextDocument>) => {
-    this.project.updateDocument(change.document);
+    const { document } = change;
+    const diagnostics = this.project.updateDocument(document);
+    this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
   };
 
   onCompletion = (
@@ -148,9 +160,7 @@ const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 // Create the server.
-const server = new Server();
-
-server.project.reporter = connection;
+const server = new Server(connection);
 
 // These handlers report the server capabilities to the client and load the workspace.
 connection.onInitialize(server.onInitialize);
