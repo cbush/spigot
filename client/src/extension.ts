@@ -61,9 +61,7 @@ function getOuterMostWorkspaceFolder(folder: WorkspaceFolder): WorkspaceFolder {
 
 export function activate(context: ExtensionContext) {
   let module = context.asAbsolutePath(path.join("server", "out", "server.js"));
-  let outputChannel: OutputChannel = Window.createOutputChannel(
-    "lsp-multi-server-example"
-  );
+  let outputChannel: OutputChannel = Window.createOutputChannel("snoot");
 
   function didOpenTextDocument(document: TextDocument): void {
     // We are only interested in language mode text
@@ -101,13 +99,13 @@ export function activate(context: ExtensionContext) {
             pattern: `${folder.uri.fsPath}/**/*`,
           },
         ],
-        diagnosticCollectionName: "lsp-multi-server-example",
+        diagnosticCollectionName: "snoot",
         workspaceFolder: folder,
         outputChannel,
       };
       let client = new LanguageClient(
-        "lsp-multi-server-example",
-        "LSP Multi Server Example",
+        "snoot",
+        "Snoot Sphinx Support",
         serverOptions,
         clientOptions
       );

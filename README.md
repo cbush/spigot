@@ -1,14 +1,17 @@
-# LSP Example
+# Snoot
 
-Heavily documented sample code for https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
+This VSCode extension adds support for Sphinx :ref: roles:
 
-## Functionality
+- autocomplete refs
+- error reporting: duplicate labels and unknown labels
+- find references
+- go to declaration
 
-This Language Server works for plain text file. It has the following language features:
-- Completions
-- Diagnostics regenerated on each file change or configuration change
+This extension is based on https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 
-It also includes an End-to-End test.
+## Dependencies
+
+You must have the Snooty VSCode extension installed (search the marketplace).
 
 ## Structure
 
@@ -16,23 +19,34 @@ It also includes an End-to-End test.
 .
 ├── client // Language Client
 │   ├── src
-│   │   ├── test // End to End tests for Language Client / Server
 │   │   └── extension.ts // Language Client entry point
 ├── package.json // The extension manifest.
 └── server // Language Server
     └── src
         └── server.ts // Language Server entry point
+        └── .... // additional implementation files
+    └── test // Test directory
 ```
 
-## Running the Sample
+## Implementation
 
-- Run `npm install` in this folder. This installs all necessary npm modules in both the client and server folder
-- Open VS Code on this folder.
-- Press Ctrl+Shift+B to compile the client and server.
-- Switch to the Debug viewlet.
-- Select `Launch Client` from the drop down.
-- Run the launch config.
-- If you want to debug the server as well use the launch configuration `Attach to Server`
-- In the [Extension Development Host] instance of VSCode, open a document in 'plain text' language mode.
-  - Type `j` or `t` to see `Javascript` and `TypeScript` completion.
-  - Enter text content such as `AAA aaa BBB`. The extension will emit diagnostics for all words in all-uppercase.
+- As we only care about refs, syntax is parsed using regex... for now. Performance is a secondary goal to getting this working.
+- A Project represents the open workspace and its entities.
+- An Entity is a label declaration (`.. _some-ref:`) or a reference to a label (:ref:`some-ref`)
+- The Entities class manages entities in a workspace.
+
+## Running the Server
+
+- `npm install`
+- Open VSCode on this folder (`code .`)
+- Press F5 to compile and debug.
+- If you want to debug the server as well use the launch configuration `Client + Server`
+- In the [Extension Development Host] instance of VSCode, open a Sphinx project.
+
+## Running tests
+
+- `npm run test`
+
+## Running test coverage
+
+- `npm run coverage`
