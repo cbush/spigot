@@ -1,4 +1,4 @@
-# Snoot
+# Snooty Spigot
 
 This VSCode extension adds support for Sphinx :ref: roles:
 
