@@ -4,7 +4,7 @@ import {
   Diagnostic,
   DiagnosticSeverity,
 } from "vscode-languageserver";
-import deepEqual = require("deep-equal");
+import deepEqual from "deep-equal";
 import { Entity, Name } from "./Entity";
 import { findLabels } from "./findLabels";
 import { findReferences } from "./findReferences";
@@ -78,7 +78,7 @@ export class Entities {
         return {
           severity: DiagnosticSeverity.Error,
           message: `Duplicate label: ${name}`,
-          source: "snoot",
+          source: "spigot",
           range: location.range,
           relatedInformation: [
             {
@@ -96,7 +96,7 @@ export class Entities {
           severity: DiagnosticSeverity.Error,
           range: entity.location.range,
           message: `Unknown label: ${name}`,
-          source: "snoot",
+          source: "spigot",
         };
       }
       if (!this._references.get(name)) {

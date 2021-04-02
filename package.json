@@ -1,43 +1,40 @@
 {
-  "name": "snoot",
+  "name": "spigot",
   "description": "",
   "author": "Chris Bush",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cbush/snoot"
+    "url": "https://github.com/cbush/spigot"
   },
-  "publisher": "snoot",
+  "publisher": "spigot",
   "categories": [],
-  "keywords": [
-    "multi-root ready"
-  ],
   "engines": {
     "vscode": "^1.43.0"
   },
   "activationEvents": [
     "onLanguage:restructuredtext"
   ],
-  "main": "./client/out/extension",
+  "main": "./build/client/extension",
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Snoot",
+      "title": "spigot",
       "properties": {
-        "snoot.enable": {
+        "spigot.enable": {
           "scope": "resource",
           "type": "boolean",
           "default": true,
           "description": "Controls the enablement."
         },
-        "snoot.options": {
+        "spigot.options": {
           "scope": "resource",
           "type": "object",
           "default": {},
           "description": "Additional options."
         },
-        "snoot.trace.server": {
+        "spigot.trace.server": {
           "scope": "window",
           "type": "string",
           "enum": [
@@ -52,21 +49,39 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -b",
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -b",
     "watch": "tsc -b -w",
-    "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
     "test": "jest",
     "coverage": "jest --coverage"
   },
   "devDependencies": {
-    "@babel/preset-typescript": "^7.10.4",
+    "@babel/core": "^7.13.14",
+    "@babel/parser": "^7.13.13",
+    "@babel/preset-typescript": "^7.13.0",
+    "@babel/types": "^7.13.14",
     "@types/jest": "^26.0.13",
-    "@types/node": "^12.12.0",
-    "@typescript-eslint/parser": "^2.3.0",
-    "eslint": "^6.4.0",
+    "@types/node": "^12.20.7",
+    "@types/vscode": "^1.55.0",
+    "@typescript-eslint/eslint-plugin": "^4.20.0",
+    "@typescript-eslint/parser": "^2.34.0",
+    "@types/deep-equal": "^1.0.1",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-tsdoc": "^0.2.11",
     "jest": "^26.4.2",
-    "ts-jest": "^26.3.0",
-    "typescript": "^3.9.4"
+    "prettier": "^2.2.1",
+    "release-it": "^14.5.1",
+    "ts-jest": "^26.5.4",
+    "typescript": "^3.9.9",
+    "vscode-languageserver-types": "^3.16.0"
+  },
+  "dependencies": {
+    "deep-equal": "^2.0.3",
+    "globby": "^11.0.1",
+    "vscode-languageclient": "^6.1.4",
+    "vscode-languageserver": "^6.1.1",
+    "vscode-languageserver-textdocument": "^1.0.1"
   }
 }

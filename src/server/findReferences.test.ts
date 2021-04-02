@@ -1,4 +1,4 @@
-import { findReferences } from "../src/findReferences";
+import { findReferences } from "./findReferences";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 test("finds no references", () => {

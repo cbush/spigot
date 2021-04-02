@@ -1,4 +1,5 @@
-import { Entities } from "../src/entities";
+import { strict as assert } from "assert";
+import { Entities } from "./entities";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 test("can add entities", () => {
@@ -16,9 +17,9 @@ test("can add entities", () => {
   });
   expect(diagnostics).toBeUndefined();
   expect(entities.size).toBe(1);
-  expect(entities.getDeclaration("some-ref").name).toBe("some-ref");
+  expect(entities.getDeclaration("some-ref")?.name).toBe("some-ref");
   expect(entities.getReferences("some-ref")).toBeUndefined();
-  expect(entities.getEntitiesInDocument("test").length).toBe(1);
+  expect(entities.getEntitiesInDocument("test")?.length).toBe(1);
 
   diagnostics = entities.add({
     location: {
@@ -33,9 +34,9 @@ test("can add entities", () => {
   });
   expect(diagnostics).toBeUndefined();
   expect(entities.size).toBe(2);
-  expect(entities.getDeclaration("some-ref").name).toBe("some-ref");
-  expect(entities.getReferences("some-ref").length).toBe(1);
-  expect(entities.getEntitiesInDocument("test").length).toBe(2);
+  expect(entities.getDeclaration("some-ref")?.name).toBe("some-ref");
+  expect(entities.getReferences("some-ref")?.length).toBe(1);
+  expect(entities.getEntitiesInDocument("test")?.length).toBe(2);
 });
 
 test("can add document labels and references", () => {
@@ -60,15 +61,16 @@ This document has two entities. A label:
   const referenceDiagnostics = entities.addDocumentReferences(document);
   expect(referenceDiagnostics.length).toBe(0);
   expect(entities.size).toBe(2);
-  expect(entities.getEntitiesInDocument("test").length).toBe(2);
+  expect(entities.getEntitiesInDocument("test")?.length).toBe(2);
 
   const decl = entities.getDeclaration("some-ref");
-  expect(decl.name).toBe("some-ref");
-  expect(decl.location.uri).toBe("test");
-  expect(decl.location.range.start.line).toBe(3);
-  expect(decl.location.range.start.character).toBe(0);
+  expect(decl?.name).toBe("some-ref");
+  expect(decl?.location.uri).toBe("test");
+  expect(decl?.location.range.start.line).toBe(3);
+  expect(decl?.location.range.start.character).toBe(0);
 
   const references = entities.getReferences("some-ref");
+  assert(references !== undefined);
   expect(references.length).toBe(1);
   expect(references[0].location.uri).toBe("test");
   expect(references[0].location.range.start.line).toBe(5);

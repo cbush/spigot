@@ -9,10 +9,6 @@ This VSCode extension adds support for Sphinx :ref: roles:
 
 This extension is based on https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 
-## Dependencies
-
-You must have the Snooty VSCode extension installed (search the marketplace).
-
 ## Structure
 
 ```

@@ -1,4 +1,4 @@
-import { findLabels } from "../src/findLabels";
+import { findLabels } from "./findLabels";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 test("finds no labels", () => {

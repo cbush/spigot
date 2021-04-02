@@ -19,7 +19,7 @@ import {
   ExecuteCommandParams,
   CodeActionKind,
 } from "vscode-languageserver";
-import globby = require("globby");
+import globby from "globby";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { Project } from "./Project";
 import { URL } from "url";
