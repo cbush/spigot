@@ -11,6 +11,21 @@ There are no labels in this document.
 .. is close, but not.
 .. a _something:? forget it.
 .. _also not a label:
+
+.. code-block:: js
+   :emphasize-lines: 1
+
+   // Foo!
+
+Heading
+=======
+Blah blah blah
+
+Another Heading
+---------------
+
+Blah blah blah
+
 `
   );
 
