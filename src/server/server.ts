@@ -21,10 +21,10 @@ import {
 } from "vscode-languageserver";
 import globby from "globby";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { Project } from "./Project";
+import { Project } from "../lib/Project";
 import { URL } from "url";
 import { readFile } from "fs";
-import { Reporter } from "./Reporter";
+import { Reporter } from "../lib/Reporter";
 
 class Server {
   connection: Reporter;

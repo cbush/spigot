@@ -1,6 +1,5 @@
-import { DocumentUri, Position, TextDocument } from "vscode-languageserver";
+import { Position, TextDocument } from "vscode-languageserver-textdocument";
 import { Entity } from "./Entity";
-import { Project } from "./Project";
 import { Entities } from "./Entities";
 
 // Finds an entity, if any, at the given position of the given document
