@@ -1,9 +1,5 @@
-import {
-  DocumentUri,
-  TextDocument,
-  Diagnostic,
-  DiagnosticSeverity,
-} from "vscode-languageserver";
+import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
+import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import deepEqual from "deep-equal";
 import { Entity, Name } from "./Entity";
 import { findLabels } from "./findLabels";
@@ -12,7 +8,7 @@ import { findReferences } from "./findReferences";
 // Entities represents the collection of entities in documents.
 export class Entities {
   get declarations(): Entity[] {
-    return Array.from(this._declarations, ([_k, entity]) => entity);
+    return Array.from(this._declarations, ([, entity]) => entity);
   }
 
   get size(): number {
@@ -102,14 +98,14 @@ export class Entities {
       if (!this._references.get(name)) {
         this._references.set(name, []);
       }
-      this._references.get(name)!.push(entity);
+      this._references.get(name)?.push(entity);
     }
 
     const { uri } = entity.location;
     if (!this._entitiesByDocument.has(uri)) {
       this._entitiesByDocument.set(uri, []);
     }
-    this._entitiesByDocument.get(uri)!.push(entity);
+    this._entitiesByDocument.get(uri)?.push(entity);
   };
 
   remove = (entity: Entity): boolean => {

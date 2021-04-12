@@ -59,7 +59,7 @@ function getOuterMostWorkspaceFolder(folder: WorkspaceFolder): WorkspaceFolder {
   return folder;
 }
 
-export function activate(context: ExtensionContext) {
+export function activate(context: ExtensionContext): void {
   const module = context.asAbsolutePath(
     path.join("build", "server", "server.js")
   );

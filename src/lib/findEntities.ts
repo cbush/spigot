@@ -1,4 +1,4 @@
-import { TextDocument } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { isCommentedOut } from "./isCommentedOut";
 import { Entity, EntityType } from "./Entity";
 

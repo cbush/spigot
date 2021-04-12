@@ -1,4 +1,4 @@
-import { TextDocument } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { Entity } from "./Entity";
 import { findEntities } from "./findEntities";
 

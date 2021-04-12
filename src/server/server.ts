@@ -156,12 +156,14 @@ class Server {
     return this.project.getDocumentLinks(params);
   };
 
-  onCodeAction = (_params: CodeActionParams): CodeAction[] | null => {
+  onCodeAction = (params: CodeActionParams): CodeAction[] | null => {
     // TODO
     return null;
   };
 
-  onExecuteCommand = (_params: ExecuteCommandParams): void => {};
+  onExecuteCommand = (params: ExecuteCommandParams): void => {
+    // TODO
+  };
 }
 
 // Create a connection for the server, using Node's IPC as a transport.

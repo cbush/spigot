@@ -1,6 +1,5 @@
+import { strict as assert } from "assert";
 import {
-  DocumentUri,
-  TextDocument,
   DeclarationParams,
   Location,
   ReferenceParams,
@@ -12,6 +11,7 @@ import {
   CompletionItemKind,
   Diagnostic,
 } from "vscode-languageserver";
+import { TextDocument, DocumentUri } from "vscode-languageserver-textdocument";
 import { Entities } from "./Entities";
 import { findEntityAtPosition } from "./findEntityAtPosition";
 
@@ -146,7 +146,9 @@ export class Project {
           this._entities.getDeclaration(entity.name)
       )
       .map((entity) => {
-        const { location } = this._entities.getDeclaration(entity.name)!;
+        const declaredEntity = this._entities.getDeclaration(entity.name);
+        assert(declaredEntity !== undefined);
+        const { location } = declaredEntity;
         return DocumentLink.create(
           entity.location.range,
           `${location.uri}#${location.range.start.line + 1}:${

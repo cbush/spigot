@@ -1,5 +1,5 @@
-import { Range } from "vscode-languageserver-textdocument";
-import { TextDocument, Position } from "vscode-languageserver";
+import { Range, TextDocument } from "vscode-languageserver-textdocument";
+import { Position } from "vscode-languageserver";
 
 // Quick and dirty rST comment check. A proper parser can detect block comments, etc.
 export function isCommentedOut(
