@@ -3,7 +3,7 @@ import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import deepEqual from "deep-equal";
 import { Entity, Name } from "./Entity";
 import { findLabels } from "./findLabels";
-import { findReferences } from "./findReferences";
+import { Parser } from "./Parser";
 
 // Entities represents the collection of entities in documents.
 export class Entities {
@@ -44,7 +44,7 @@ export class Entities {
   // collection, and returns any diagnostics.
   addDocumentReferences = (document: TextDocument): Diagnostic[] => {
     const diagnostics: Diagnostic[] = [];
-    findReferences(document).forEach((reference) => {
+    this._parser.findReferences(document).forEach((reference) => {
       const diagnostic = this.add(reference);
       if (diagnostic) {
         diagnostics.push(diagnostic);
@@ -135,6 +135,7 @@ export class Entities {
     return true;
   };
 
+  private _parser = new Parser();
   private _declarations = new Map<Name, Entity>();
   private _references = new Map<Name, Entity[]>();
   private _entitiesByDocument = new Map<DocumentUri, Entity[]>();

@@ -1,10 +1,32 @@
+import { Range } from "vscode-languageserver-textdocument";
+
 type Position = {
   line: number;
   column: number;
   offset: number;
 };
 
-export type ParsedRst = {
+export function rstPositionToRange({
+  position,
+}: {
+  position: {
+    start: Position;
+    end: Position;
+  };
+}): Range {
+  return {
+    start: {
+      line: position.start.line - 1,
+      character: position.start.column - 1,
+    },
+    end: {
+      line: position.end.line - 1,
+      character: position.end.column - 1,
+    },
+  };
+}
+
+export type RstNode = {
   // See https://github.com/seikichi/restructured/blob/master/src/Type.js#L3
   type:
     | "attribution"
@@ -65,6 +87,7 @@ export type ParsedRst = {
     | "target"
     | "tbody"
     | "term"
+    | "text"
     | "tgroup"
     | "thead"
     | "title"
@@ -77,6 +100,12 @@ export type ParsedRst = {
     end: Position;
   };
   depth?: number;
-  children?: ParsedRst[];
+  children?: RstNode[];
   value?: string;
+};
+
+export type InterpretedTextNode = RstNode & {
+  type: "interpreted_text";
+  role: string;
+  children: RstNode & { type: "text"; value: string }[];
 };
