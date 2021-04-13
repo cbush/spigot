@@ -12,7 +12,7 @@ test("can add and update documents", () => {
     "",
     0,
     `
-This document has two entities. A label:
+This document has two entities. A target:
 
 .. _some-ref:
 
@@ -45,7 +45,7 @@ beforeEach(() => {
     "",
     0,
     `
-This document has two entities. A label:
+This document has two entities. A target:
 
 .. _some-ref:
 
@@ -111,7 +111,7 @@ test("can get declaration", () => {
   });
 
   expect(declaration?.uri).toBe("test");
-  expect(document.getText(declaration?.range)).toBe(".. _some-ref:");
+  expect(document.getText(declaration?.range)).toBe(".. _some-ref:\n");
 });
 
 test("can get declaration across files", () => {
@@ -120,7 +120,7 @@ test("can get declaration across files", () => {
     position: { line: 0, character: 52 },
   });
   expect(declaration?.uri).toBe("test");
-  expect(document.getText(declaration?.range)).toBe(".. _some-ref:");
+  expect(document.getText(declaration?.range)).toBe(".. _some-ref:\n");
 });
 
 test("finds no declaration for invalid cursor", () => {
@@ -149,7 +149,7 @@ test("removing documents updates declarations", () => {
     position: { line: 0, character: 52 },
   });
   expect(declaration?.uri).toBe("test");
-  expect(document.getText(declaration?.range)).toBe(".. _some-ref:");
+  expect(document.getText(declaration?.range)).toBe(".. _some-ref:\n");
   project?.removeDocument(document.uri);
   expect(project?.documentCount).toBe(2);
   declaration = project?.getDeclaration({

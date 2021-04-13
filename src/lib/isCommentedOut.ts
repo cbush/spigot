@@ -10,7 +10,7 @@ export function isCommentedOut(
     return false;
   }
 
-  // Check the line so far up to the label directive
+  // Check the line so far up to the target directive
   const lineUpToRange = textDocument.getText({
     start: Position.create(range.start.line, 0),
     end: range.start,

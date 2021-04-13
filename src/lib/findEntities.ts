@@ -26,10 +26,10 @@ export function findEntities(
         continue;
       }
 
-      const label = m[1];
+      const target = m[1];
 
       const entity: Entity = {
-        name: label,
+        name: target,
         type: entityType,
         location: {
           uri,

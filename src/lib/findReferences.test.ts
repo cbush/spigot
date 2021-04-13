@@ -24,7 +24,7 @@ There are no references in this document.
     expect(references.length).toBe(0);
   });
 
-  it("finds a label-only reference", () => {
+  it("finds a target-only reference", () => {
     const document = TextDocument.create(
       "test",
       "",

@@ -13,7 +13,7 @@ test("can add entities", () => {
       },
     },
     name: "some-ref",
-    type: "rst.label",
+    type: "rst.target",
   });
   expect(diagnostics).toBeUndefined();
   expect(entities.size).toBe(1);
@@ -39,13 +39,13 @@ test("can add entities", () => {
   expect(entities.getEntitiesInDocument("test")?.length).toBe(2);
 });
 
-test("can add document labels and references", () => {
+test("can add document targets and references", () => {
   const document = TextDocument.create(
     "test",
     "",
     0,
     `
-This document has two entities. A label:
+This document has two entities. A target:
 
 .. _some-ref:
 
@@ -55,8 +55,8 @@ This document has two entities. A label:
 
   const entities = new Entities();
   expect(entities.size).toBe(0);
-  const labelDiagnostics = entities.addDocumentLabels(document);
-  expect(labelDiagnostics.length).toBe(0);
+  const targetDiagnostics = entities.addDocumentTargets(document);
+  expect(targetDiagnostics.length).toBe(0);
   expect(entities.size).toBe(1);
   const referenceDiagnostics = entities.addDocumentReferences(document);
   expect(referenceDiagnostics.length).toBe(0);
@@ -77,13 +77,14 @@ This document has two entities. A label:
   expect(references[0].location.range.start.character).toBe(22);
 });
 
-test("duplicate labels report error", () => {
+test("duplicate targets report error", () => {
   const document = TextDocument.create(
     "test",
     "",
     0,
     `
-This document has two identical labels:
+This document has two identical targets:
+
 .. _some-ref:
 .. _some-ref:
 `
@@ -91,20 +92,20 @@ This document has two identical labels:
 
   const entities = new Entities();
   expect(entities.size).toBe(0);
-  const labelDiagnostics = entities.addDocumentLabels(document);
-  expect(labelDiagnostics.length).toBe(1);
+  const targetDiagnostics = entities.addDocumentTargets(document);
+  expect(targetDiagnostics.length).toBe(1);
   expect(entities.size).toBe(1);
-  expect(labelDiagnostics[0].message).toBe("Duplicate label: some-ref");
+  expect(targetDiagnostics[0].message).toBe("Duplicate target: some-ref");
 });
 
-test("unknown labels report error", () => {
+test("unknown targets report error", () => {
   const document = TextDocument.create(
     "test",
     "",
     0,
     `
-This document has a reference to an unknown label:
-:ref:\`some-unknown-label\`
+This document has a reference to an unknown target:
+:ref:\`some-unknown-target\`
 `
   );
 
@@ -113,7 +114,7 @@ This document has a reference to an unknown label:
   const diagnostics = entities.addDocumentReferences(document);
   expect(entities.size).toBe(0);
   expect(diagnostics.length).toBe(1);
-  expect(diagnostics[0].message).toBe("Unknown label: some-unknown-label");
+  expect(diagnostics[0].message).toBe("Unknown target: some-unknown-target");
 });
 
 test("can't remove unknown entity", () => {

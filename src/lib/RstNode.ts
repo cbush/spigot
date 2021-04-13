@@ -60,7 +60,7 @@ export type RstNode = {
     | "footnote"
     | "footnote_reference"
     | "interpreted_text"
-    | "label"
+    | "target"
     | "line"
     | "line_block"
     | "list_item"

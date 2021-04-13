@@ -20,7 +20,7 @@ import { findEntityAtPosition } from "./findEntityAtPosition";
 export class Project {
   addDocument = (document: TextDocument): Diagnostic[] => {
     this._documents.set(document.uri, document);
-    return this._entities.addDocumentLabels(document);
+    return this._entities.addDocumentTargets(document);
   };
 
   getDocument = (uri: DocumentUri): TextDocument | undefined => {
@@ -37,9 +37,9 @@ export class Project {
     this._documents.set(uri, document);
 
     this._entities.onDocumentRemoved(uri);
-    const labelDiagnostics = this._entities.addDocumentLabels(document);
+    const targetDiagnostics = this._entities.addDocumentTargets(document);
     const referenceDiagnostics = this._entities.addDocumentReferences(document);
-    return [...labelDiagnostics, ...referenceDiagnostics];
+    return [...targetDiagnostics, ...referenceDiagnostics];
   };
 
   removeDocument = (uri: DocumentUri): boolean => {
@@ -142,7 +142,7 @@ export class Project {
     return documentEntities
       .filter(
         (entity) =>
-          entity.type !== "rst.label" &&
+          entity.type !== "rst.target" &&
           this._entities.getDeclaration(entity.name)
       )
       .map((entity) => {

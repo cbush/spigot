@@ -2,7 +2,6 @@ import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import deepEqual from "deep-equal";
 import { Entity, Name } from "./Entity";
-import { findLabels } from "./findLabels";
 import { Parser } from "./Parser";
 
 // Entities represents the collection of entities in documents.
@@ -27,12 +26,12 @@ export class Entities {
     return this._references.get(name);
   };
 
-  // Scans the given document for labels, adds them to the entities collection,
+  // Scans the given document for targets, adds them to the entities collection,
   // and returns any diagnostics.
-  addDocumentLabels = (document: TextDocument): Diagnostic[] => {
+  addDocumentTargets = (document: TextDocument): Diagnostic[] => {
     const diagnostics: Diagnostic[] = [];
-    findLabels(document).forEach((label) => {
-      const diagnostic = this.add(label);
+    this._parser.findTargets(document).forEach((target) => {
+      const diagnostic = this.add(target);
       if (diagnostic) {
         diagnostics.push(diagnostic);
       }
@@ -64,16 +63,16 @@ export class Entities {
   // Adds the entity to the collection or reports an error.
   add = (entity: Entity): Diagnostic | undefined => {
     const { location, name, type } = entity;
-    if (type === "rst.label") {
+    if (type === "rst.target") {
       const existingDeclaration = this.getDeclaration(name);
       if (
         existingDeclaration &&
         !deepEqual(existingDeclaration.location, location)
       ) {
-        // Duplicate label
+        // Duplicate target
         return {
           severity: DiagnosticSeverity.Error,
-          message: `Duplicate label: ${name}`,
+          message: `Duplicate target: ${name}`,
           source: "spigot",
           range: location.range,
           relatedInformation: [
@@ -87,11 +86,11 @@ export class Entities {
       this._declarations.set(name, entity);
     } else {
       if (!this.getDeclaration(name)) {
-        // Unknown label
+        // Unknown target
         return {
           severity: DiagnosticSeverity.Error,
           range: entity.location.range,
-          message: `Unknown label: ${name}`,
+          message: `Unknown target: ${name}`,
           source: "spigot",
         };
       }
@@ -109,7 +108,7 @@ export class Entities {
   };
 
   remove = (entity: Entity): boolean => {
-    if (entity.type === "rst.label") {
+    if (entity.type === "rst.target") {
       return this._declarations.delete(entity.name);
     }
 

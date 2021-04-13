@@ -5,8 +5,8 @@ import { InterpretedTextNode, RstNode, rstPositionToRange } from "./RstNode";
 
 type DocumentVersion = number;
 
-/*
-  Searches a tree depth-first and collects all nodes that match the given
+/**
+  Searches a tree depth first and collects all nodes that match the given
   predicate. 
 
   The optional enterSubtree predicate can prevent the search from entering the
@@ -33,7 +33,7 @@ function findAll(
 }
 
 export class Parser {
-  /*
+  /**
     Returns the result of parsing the given rST text document. Uses cached
     results based on the document version where possible.
    */
@@ -54,6 +54,9 @@ export class Parser {
     return result;
   };
 
+  /**
+    Searches the document for ref-roles.
+   */
   findReferences = (document: TextDocument): Entity[] => {
     const result = this.parse(document);
     const nodes = findAll(
@@ -85,6 +88,51 @@ export class Parser {
         };
       }
     );
+  };
+
+  /**
+    Searches the document for targets that refs can link to.
+   */
+  findTargets = (document: TextDocument): Entity[] => {
+    const result = this.parse(document);
+    const entities: Entity[] = [];
+    findAll(result, (node) => {
+      // `restructured` library views targets as comments
+      if (node.type !== "comment") {
+        return false;
+      }
+      if (node.children === undefined || node.children.length !== 1) {
+        return false;
+      }
+      const textNode = node.children[0];
+      if (
+        textNode.position.start.line !== node.position.start.line ||
+        textNode.type !== "text"
+      ) {
+        return false;
+      }
+      const text = textNode.value;
+      if (text === undefined) {
+        return false;
+      }
+      const re = /^_([^:]+):\s*$/;
+      const match = re.exec(text);
+      if (match === null) {
+        return false;
+      }
+      const name = match[1];
+      const range = rstPositionToRange(node);
+      entities.push({
+        location: {
+          range,
+          uri: document.uri,
+        },
+        type: "rst.target",
+        name,
+      });
+      return true;
+    });
+    return entities;
   };
 
   private _documents = new Map<DocumentUri, [DocumentVersion, RstNode]>();
