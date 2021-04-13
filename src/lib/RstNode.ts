@@ -109,3 +109,9 @@ export type InterpretedTextNode = RstNode & {
   role: string;
   children: RstNode & { type: "text"; value: string }[];
 };
+
+export type DirectiveNode = RstNode & {
+  type: "directive";
+  directive: string;
+  children: RstNode[];
+};

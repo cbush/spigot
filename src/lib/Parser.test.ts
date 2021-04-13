@@ -124,7 +124,7 @@ This is a subsection
                   children: [
                     {
                       position: {
-                        end: { column: 1, line: 18, offset: 157 },
+                        end: { column: 23, line: 15, offset: 151 },
                         start: { column: 1, line: 15, offset: 129 },
                       },
                       type: "text",
@@ -335,41 +335,17 @@ Section 2
 Even more text
 `
     );
-    const result = parser.parse(document);
+    const result = parser.parse(document, { includePositions: false });
     expect(result).toMatchObject({
       type: "document",
       children: [
         {
           children: [
             {
-              position: {
-                end: {
-                  column: 1,
-                  line: 3,
-                  offset: 16,
-                },
-                start: {
-                  column: 1,
-                  line: 2,
-                  offset: 1,
-                },
-              },
               type: "text",
               value: "_my-target:",
             },
           ],
-          position: {
-            end: {
-              column: 1,
-              line: 3,
-              offset: 16,
-            },
-            start: {
-              column: 1,
-              line: 2,
-              offset: 1,
-            },
-          },
           type: "comment",
         },
         {
@@ -377,100 +353,28 @@ Even more text
             {
               children: [
                 {
-                  position: {
-                    end: {
-                      column: 10,
-                      line: 4,
-                      offset: 26,
-                    },
-                    start: {
-                      column: 1,
-                      line: 4,
-                      offset: 17,
-                    },
-                  },
                   type: "text",
                   value: "Section 1",
                 },
               ],
-              position: {
-                end: {
-                  column: 1,
-                  line: 6,
-                  offset: 43,
-                },
-                start: {
-                  column: 1,
-                  line: 4,
-                  offset: 17,
-                },
-              },
               type: "title",
             },
             {
               children: [
                 {
-                  position: {
-                    end: {
-                      column: 1,
-                      line: 8,
-                      offset: 54,
-                    },
-                    start: {
-                      column: 1,
-                      line: 7,
-                      offset: 44,
-                    },
-                  },
                   type: "text",
                   value: "Some text\n",
                 },
               ],
-              position: {
-                end: {
-                  column: 1,
-                  line: 8,
-                  offset: 54,
-                },
-                start: {
-                  column: 1,
-                  line: 7,
-                  offset: 44,
-                },
-              },
               type: "paragraph",
             },
             {
               children: [
                 {
-                  position: {
-                    end: {
-                      column: 1,
-                      line: 10,
-                      offset: 71,
-                    },
-                    start: {
-                      column: 1,
-                      line: 9,
-                      offset: 55,
-                    },
-                  },
                   type: "text",
                   value: "_my-target2:", // Not associated with the next section
                 },
               ],
-              position: {
-                end: {
-                  column: 1,
-                  line: 10,
-                  offset: 71,
-                },
-                start: {
-                  column: 1,
-                  line: 9,
-                  offset: 55,
-                },
-              },
               type: "comment",
             },
             {
@@ -478,132 +382,36 @@ Even more text
                 {
                   children: [
                     {
-                      position: {
-                        end: {
-                          column: 12,
-                          line: 11,
-                          offset: 83,
-                        },
-                        start: {
-                          column: 1,
-                          line: 11,
-                          offset: 72,
-                        },
-                      },
                       type: "text",
                       value: "Sub-section",
                     },
                   ],
-                  position: {
-                    end: {
-                      column: 1,
-                      line: 13,
-                      offset: 96,
-                    },
-                    start: {
-                      column: 1,
-                      line: 11,
-                      offset: 72,
-                    },
-                  },
                   type: "title",
                 },
                 {
                   children: [
                     {
-                      position: {
-                        end: {
-                          column: 1,
-                          line: 15,
-                          offset: 112,
-                        },
-                        start: {
-                          column: 1,
-                          line: 14,
-                          offset: 97,
-                        },
-                      },
                       type: "text",
                       value: "Some more text\n",
                     },
                   ],
-                  position: {
-                    end: {
-                      column: 1,
-                      line: 15,
-                      offset: 112,
-                    },
-                    start: {
-                      column: 1,
-                      line: 14,
-                      offset: 97,
-                    },
-                  },
                   type: "paragraph",
                 },
                 {
                   children: [
                     {
-                      position: {
-                        end: {
-                          column: 1,
-                          line: 17,
-                          offset: 129,
-                        },
-                        start: {
-                          column: 1,
-                          line: 16,
-                          offset: 113,
-                        },
-                      },
                       type: "text",
                       value: "_my-target3:",
                     },
                   ],
-                  position: {
-                    end: {
-                      column: 1,
-                      line: 17,
-                      offset: 129,
-                    },
-                    start: {
-                      column: 1,
-                      line: 16,
-                      offset: 113,
-                    },
-                  },
                   type: "comment",
                 },
               ],
               depth: 2,
-              position: {
-                end: {
-                  column: 1,
-                  line: 17,
-                  offset: 129,
-                },
-                start: {
-                  column: 1,
-                  line: 10,
-                  offset: 71,
-                },
-              },
               type: "section",
             },
           ],
           depth: 1,
-          position: {
-            end: {
-              column: 1,
-              line: 17,
-              offset: 129,
-            },
-            start: {
-              column: 1,
-              line: 3,
-              offset: 16,
-            },
-          },
           type: "section",
         },
         {
@@ -611,83 +419,23 @@ Even more text
             {
               children: [
                 {
-                  position: {
-                    end: {
-                      column: 10,
-                      line: 18,
-                      offset: 139,
-                    },
-                    start: {
-                      column: 1,
-                      line: 18,
-                      offset: 130,
-                    },
-                  },
                   type: "text",
                   value: "Section 2",
                 },
               ],
-              position: {
-                end: {
-                  column: 1,
-                  line: 20,
-                  offset: 151,
-                },
-                start: {
-                  column: 1,
-                  line: 18,
-                  offset: 130,
-                },
-              },
               type: "title",
             },
             {
               children: [
                 {
-                  position: {
-                    end: {
-                      column: 1,
-                      line: 22,
-                      offset: 167,
-                    },
-                    start: {
-                      column: 1,
-                      line: 21,
-                      offset: 152,
-                    },
-                  },
                   type: "text",
                   value: "Even more text\n",
                 },
               ],
-              position: {
-                end: {
-                  column: 1,
-                  line: 22,
-                  offset: 167,
-                },
-                start: {
-                  column: 1,
-                  line: 21,
-                  offset: 152,
-                },
-              },
               type: "paragraph",
             },
           ],
           depth: 1,
-          position: {
-            end: {
-              column: 1,
-              line: 22,
-              offset: 167,
-            },
-            start: {
-              column: 1,
-              line: 17,
-              offset: 129,
-            },
-          },
           type: "section",
         },
       ],
@@ -704,5 +452,74 @@ Even more text
     );
     const result = parser.parse(document);
     expect(result).toBeDefined();
+  });
+
+  it("parses text within directives", () => {
+    const parser = new Parser();
+    const document = TextDocument.create(
+      "test.txt",
+      "restructuredtext",
+      0,
+      `
+.. seealso::
+   :option: foo, bar
+   :option2: another value
+
+   This is :ref:\`parsed\`
+
+.. code-block::
+   :option: foo, bar
+
+   This is :ref:\`not parsed\`
+`
+    );
+    const result = parser.parse(document, { includePositions: false });
+    expect(result).toStrictEqual({
+      children: [
+        {
+          children: [
+            {
+              type: "text",
+              value: ":option: foo, bar\n",
+            },
+            {
+              type: "text",
+              value: ":option2: another value\n",
+            },
+            {
+              type: "text",
+              value: "This is ",
+            },
+            {
+              children: [
+                {
+                  type: "text",
+                  value: "parsed",
+                },
+              ],
+              role: "ref",
+              type: "interpreted_text",
+            },
+          ],
+          directive: "seealso",
+          type: "directive",
+        },
+        {
+          children: [
+            {
+              type: "text",
+              value: ":option: foo, bar",
+            },
+            {
+              type: "text",
+              value: "This is :ref:`not parsed`",
+            },
+          ],
+          directive: "code-block",
+          type: "directive",
+        },
+      ],
+      type: "document",
+    });
   });
 });

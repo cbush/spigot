@@ -82,10 +82,10 @@ Directives will be included.And here's some more text.
     expect(subsections[1].name).toBe("Another Subsection");
     expect(subsections[1].subsections.length).toBe(0);
     expect(subsections[1].text).toBe("This is the other subsection text.\n");
-    expect(subsections[0].refs).toStrictEqual([]);
+    expect(subsections[0].inlineRefs).toStrictEqual([]);
   });
 
-  it("finds refs in the section", () => {
+  it("finds refs in the section but not seealsos", () => {
     const parser = new Parser();
     const document = TextDocument.create(
       "test",
@@ -102,6 +102,10 @@ Subsection
 ----------
 
 Here's another :ref:\`link <to-something-else>\`.
+
+.. seealso::
+
+   Why doesn't this work :ref:\`don't include this <link>\`
 `
     );
 
@@ -111,12 +115,15 @@ Here's another :ref:\`link <to-something-else>\`.
     expect(section.depth).toBe(1);
     expect(section.name).toBe("It's a Section");
     expect(section.text).toBe("Here's a link <to-something>.\n");
-    expect(section.refs.length).toBe(1);
-    expect(section.refs[0].name).toBe("to-something");
+    expect(section.inlineRefs.length).toBe(1);
+    expect(section.inlineRefs[0].name).toBe("to-something");
     const { subsections } = section;
     expect(subsections.length).toBe(1);
     expect(subsections[0].depth).toBe(2);
     expect(subsections[0].name).toBe("Subsection");
-    expect(subsections[0].refs[0].name).toBe("to-something-else");
+    expect(subsections[0].inlineRefs[0].name).toBe("to-something-else");
+    expect(subsections[0].seeAlsos.length).toBe(1);
+    expect(subsections[0].seeAlsos[0].refs.length).toBe(1);
+    expect(subsections[0].seeAlsos[0].refs[0].name).toBe("link");
   });
 });

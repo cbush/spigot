@@ -1,9 +1,37 @@
+import { strict as assert } from "assert";
 import restructured from "restructured";
 import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
-import { ReferenceEntity, SectionEntity, TargetEntity } from "./Entity";
-import { InterpretedTextNode, RstNode, rstPositionToRange } from "./RstNode";
+import {
+  ReferenceEntity,
+  SectionEntity,
+  SeeAlsoEntity,
+  TargetEntity,
+} from "./Entity";
+import {
+  DirectiveNode,
+  InterpretedTextNode,
+  RstNode,
+  rstPositionToRange,
+} from "./RstNode";
+
+export type ParseOptions = {
+  includePositions: boolean;
+  offset?: {
+    line: number;
+    offset: number;
+    column: number;
+  };
+};
 
 type DocumentVersion = number;
+
+function isDirective(node: RstNode, directiveName?: string): boolean {
+  return (
+    node.type === "directive" &&
+    (directiveName === undefined ||
+      (node as DirectiveNode).directive === directiveName)
+  );
+}
 
 /**
   Searches a tree depth first and collects all nodes that match the given
@@ -120,6 +148,35 @@ function getRefs(
   );
 }
 
+function getSeeAlsos(
+  node: RstNode,
+  options: {
+    documentUri: string;
+    enterSubtree?: (node: RstNode) => boolean;
+  }
+): SeeAlsoEntity[] {
+  const directiveNodes = findAll(
+    node,
+    (node) => isDirective(node, "seealso"),
+    (innerNode) =>
+      innerNode.type !== "comment" &&
+      (!options.enterSubtree || options.enterSubtree(node))
+  ) as DirectiveNode[];
+  return directiveNodes.map(
+    (node): SeeAlsoEntity => ({
+      location: {
+        range: rstPositionToRange(node),
+        uri: options.documentUri,
+      },
+      name: "See Also",
+      type: "seealso",
+      refs: getRefs(node, {
+        documentUri: options.documentUri,
+      }),
+    })
+  );
+}
+
 function getSections(
   node: RstNode,
   options: {
@@ -129,16 +186,23 @@ function getSections(
   return findAll(
     node,
     (node) => node.type === "section",
-    (node) => node.type !== "comment" && node.type !== "section" // Do not enter inner sections
+    (node) =>
+      !["comment", "section"].includes(node.type) &&
+      !isDirective(node, "seealso")
   ).map(
     (node): SectionEntity => {
       const title = getTitle(node) ?? "";
       const text = getContentText(node);
-      const refs = getRefs(node, {
+
+      // Inline refs are all refs in the body text except in the seealsos and
+      // subsections.
+      const inlineRefs = getRefs(node, {
         documentUri: options.documentUri,
         enterSubtree: (innerNode) =>
-          innerNode === node || innerNode.type !== "section",
+          !isDirective(innerNode, "seealso") &&
+          (innerNode.type !== "section" || innerNode === node),
       });
+
       const subsections =
         node.children?.reduce(
           (acc, cur) => [...acc, ...getSections(cur, options)],
@@ -153,12 +217,98 @@ function getSections(
         },
         name: title,
         preSectionTargets: [],
-        refs,
+        inlineRefs,
         subsections,
         text,
+        seeAlsos: getSeeAlsos(node, {
+          documentUri: options.documentUri,
+          enterSubtree: (innerNode) =>
+            innerNode.type !== "section" || innerNode === node,
+        }),
       };
     }
   );
+}
+
+function parse(text: string, optionsIn?: ParseOptions): RstNode {
+  const options: ParseOptions = {
+    includePositions: true,
+    ...(optionsIn ?? {}),
+  };
+  const result = restructured.parse(text, {
+    position: options.includePositions,
+    blanklines: false,
+    indent: false,
+  }) as RstNode;
+
+  // 'restructured' library does not process inner text as rST.
+  // Run through directive nodes and update the child nodes.
+  findAll(result, isDirective).forEach((directiveNode) => {
+    // Some directives have literal bodies. Add more here.
+    if (["code-block"].includes((directiveNode as DirectiveNode).directive)) {
+      return;
+    }
+
+    // TODO: Parse directive options
+
+    const textNodes = findAll(directiveNode, (node) => node.type === "text");
+    // Check the assumption that 'restructured' will ONLY put text nodes in the
+    // directive nodes. If you hit this assertion please send the rST snippet
+    // that triggered it.
+    assert(textNodes.length === directiveNode.children?.length);
+
+    if (textNodes.length === 0) {
+      return;
+    }
+
+    const innerText = textNodes
+      .map((textNode) => textNode.value ?? "")
+      .join("\n");
+
+    const innerOptions = {
+      ...options,
+    };
+    if (innerOptions.includePositions) {
+      const { start } = textNodes[0].position;
+      innerOptions.offset = {
+        // Line and column are 1-based. Offsets must be 0-based for addition, so
+        // convert by subtracting 1.
+        line: start.line - 1,
+        column: start.column - 1,
+        offset: start.offset,
+      };
+    }
+
+    const innerResult = parse(innerText, innerOptions);
+    if (innerResult.children === undefined) {
+      return;
+    }
+    const paragraph = innerResult.children[0];
+    directiveNode.children = [...(paragraph.children ?? [])];
+  });
+
+  const { offset } = options;
+  if (options.includePositions && offset !== undefined) {
+    // Apply the offset in case of inner parsing. Columns are SCREWED
+    findAll(result, (node) => {
+      const originalPosition = node.position;
+      node.position = {
+        start: {
+          column: originalPosition.start.column + offset.column,
+          offset: originalPosition.start.offset + offset.offset,
+          line: originalPosition.start.line + offset.line,
+        },
+        end: {
+          offset: originalPosition.end.offset + offset.offset,
+          line: originalPosition.end.line + offset.line,
+          column: originalPosition.end.column + offset.column,
+        },
+      };
+      return false;
+    });
+  }
+
+  return result;
 }
 
 export class Parser {
@@ -166,7 +316,7 @@ export class Parser {
     Returns the result of parsing the given rST text document. Uses cached
     results based on the document version where possible.
    */
-  parse = (document: TextDocument): RstNode => {
+  parse = (document: TextDocument, options?: ParseOptions): RstNode => {
     const entry = this._documents.get(document.uri);
     if (entry !== undefined) {
       const [lastParsedVersion, lastResult] = entry;
@@ -174,11 +324,7 @@ export class Parser {
         return lastResult;
       }
     }
-    const result = restructured.parse(document.getText(), {
-      position: true,
-      blanklines: false,
-      indent: false,
-    }) as RstNode;
+    const result = parse(document.getText(), options);
     this._documents.set(document.uri, [document.version, result]);
     return result;
   };
