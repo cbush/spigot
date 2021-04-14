@@ -107,6 +107,34 @@ export type RstNode = {
   depth?: number;
   children?: RstNode[];
   value?: string;
+
+  // Index in the document
+  _index?: number;
+};
+
+export type DocumentNode = RstNode & {
+  type: "document";
+  children: RstNode[];
+
+  /**
+    Document metadata provided to the node *after* 'restructured' library parsing.
+   */
+  meta?: {
+    /**
+      The nodes in a depth-first flattened structure.
+     */
+    readonly flat: RstNode[];
+
+    /**
+      The document URI.
+     */
+    readonly uri: string;
+
+    /**
+      The document version, which increases monotonically with each change.
+     */
+    readonly version: number;
+  };
 };
 
 export type InterpretedTextNode = RstNode & {

@@ -9,28 +9,45 @@ import {
 } from "./Entity";
 import {
   DirectiveNode,
+  DocumentNode,
   InterpretedTextNode,
   RstNode,
   TargetNode,
   rstPositionToRange,
 } from "./RstNode";
 
+export type ParseOptions = {
+  offset?: {
+    line: number;
+    offset: number;
+    column: number;
+  };
+};
+
 export class Parser {
   /**
     Returns the result of parsing the given rST text document. Uses cached
     results based on the document version where possible.
    */
-  parse = (document: TextDocument, options?: ParseOptions): RstNode => {
-    const entry = this._documents.get(document.uri);
-    if (entry !== undefined) {
-      const [lastParsedVersion, lastResult] = entry;
-      if (lastParsedVersion === document.version) {
-        return lastResult;
-      }
+  parse = (document: TextDocument, options?: ParseOptions): DocumentNode => {
+    const lastResult = this._documents.get(document.uri);
+    if (
+      lastResult !== undefined &&
+      lastResult.meta?.version === document.version
+    ) {
+      return lastResult;
     }
     const result = parse(document.getText(), options);
 
-    this._documents.set(document.uri, [document.version, result]);
+    // Decorate the root with additional information that restructured can't
+    // provide.
+    result.meta = {
+      flat: paintAndFlatten(result),
+      uri: document.uri,
+      version: document.version,
+    };
+
+    this._documents.set(document.uri, result);
     return result;
   };
 
@@ -48,7 +65,7 @@ export class Parser {
   findTargets = (document: TextDocument): TargetEntity[] => {
     const result = this.parse(document);
     return (findAll(
-      result,
+      result as RstNode,
       (node) => node.type === "target",
       (node) => node.type !== "comment"
     ) as TargetNode[]).map((node) => ({
@@ -66,21 +83,11 @@ export class Parser {
    */
   findSections = (document: TextDocument): SectionEntity[] => {
     const result = this.parse(document);
-    return getSections(result, { documentUri: document.uri });
+    return getSections(result, result, { documentUri: document.uri });
   };
 
-  private _documents = new Map<DocumentUri, [DocumentVersion, RstNode]>();
+  private _documents = new Map<DocumentUri, DocumentNode>();
 }
-
-export type ParseOptions = {
-  offset?: {
-    line: number;
-    offset: number;
-    column: number;
-  };
-};
-
-type DocumentVersion = number;
 
 function isDirective(node: RstNode, directiveName?: string): boolean {
   return (
@@ -249,13 +256,14 @@ function getSeeAlsos(
 }
 
 function getSections(
-  document: RstNode,
+  document: DocumentNode,
+  section: RstNode,
   options: {
     documentUri: string;
   }
 ): SectionEntity[] {
   return findAll(
-    document,
+    section,
     (node) => node.type === "section",
     (node) =>
       !["comment", "section"].includes(node.type) &&
@@ -276,7 +284,7 @@ function getSections(
 
       const subsections =
         node.children?.reduce(
-          (acc, cur) => [...acc, ...getSections(cur, options)],
+          (acc, cur) => [...acc, ...getSections(document, cur, options)],
           [] as SectionEntity[]
         ) ?? [];
 
@@ -314,13 +322,36 @@ function getPreSectionTargets({
   document,
   section,
 }: {
-  document: RstNode;
+  document: DocumentNode;
   section: RstNode;
 }): TargetEntity[] {
-  return [];
+  assert(
+    section._index !== undefined && document.meta !== undefined,
+    "Tree metadata not provided after parsing!"
+  );
+  // Work backwards in the flat tree to collect any preceding targets.
+  // TODO: Ignore comments
+  const targets: TargetEntity[] = [];
+  const { flat } = document.meta;
+  for (let i = section._index - 1; i >= 0; --i) {
+    const priorNode = flat[i];
+    if (priorNode.type !== "target") {
+      break;
+    }
+    const target = priorNode as TargetNode;
+    targets.unshift({
+      location: {
+        range: rstPositionToRange(target),
+        uri: document.meta.uri,
+      },
+      name: target.name,
+      type: "rst.target",
+    });
+  }
+  return targets;
 }
 
-function parse(text: string, optionsIn?: ParseOptions): RstNode {
+function parse(text: string, optionsIn?: ParseOptions): DocumentNode {
   const options: ParseOptions = {
     ...(optionsIn ?? {}),
   };
@@ -328,14 +359,14 @@ function parse(text: string, optionsIn?: ParseOptions): RstNode {
     position: true,
     blanklines: true,
     indent: true,
-  }) as RstNode;
+  }) as DocumentNode;
 
   fixRestructuredNodes(result, text, options);
 
   const { offset } = options;
   if (offset !== undefined) {
     // Apply the offset in case of inner parsing. Columns are SCREWED
-    findAll(result, (node) => {
+    forEach(result as RstNode, (node) => {
       const originalPosition = node.position;
       node.position = {
         start: {
@@ -349,11 +380,22 @@ function parse(text: string, optionsIn?: ParseOptions): RstNode {
           column: originalPosition.end.column + offset.column,
         },
       };
-      return false;
     });
   }
 
   return result;
+}
+
+/**
+  Assigns an index to each node and returns the flattened tree. This is useful
+  when scanning the tree as a sequential document.
+ */
+function paintAndFlatten(result: DocumentNode): RstNode[] {
+  let index = 0;
+  return findAll(result as RstNode, (node) => {
+    node._index = index++;
+    return true;
+  });
 }
 
 /**

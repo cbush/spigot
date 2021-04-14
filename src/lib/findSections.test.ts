@@ -105,7 +105,7 @@ Here's another :ref:\`link <to-something-else>\`.
 
 .. seealso::
 
-   Why doesn't this work :ref:\`don't include this <link>\`
+   Please :ref:\`don't include this <link>\`
 `
     );
 
@@ -125,5 +125,65 @@ Here's another :ref:\`link <to-something-else>\`.
     expect(subsections[0].seeAlsos.length).toBe(1);
     expect(subsections[0].seeAlsos[0].refs.length).toBe(1);
     expect(subsections[0].seeAlsos[0].refs[0].name).toBe("link");
+    expect(subsections[0].preSectionTargets).toStrictEqual([]);
+  });
+
+  it("finds leading targets before the section", () => {
+    const parser = new Parser();
+    const document = TextDocument.create(
+      "test",
+      "",
+      0,
+      `.. _first-target:
+
+Section
+=======
+
+.. _alias1:
+.. _alias2:
+
+Subsection
+----------
+
+.. seealso::
+
+   Why doesn't this work :ref:\`don't include this <link>\`
+
+.. _another-target:
+
+Section 2
+=========
+
+Text
+
+.. _alias:
+
+.. this is a comment
+
+.. _target:
+
+Section 3
+=========
+
+Text
+`
+    );
+
+    const sections = parser.findSections(document);
+    expect(sections.length).toBe(3);
+    let section = sections[0];
+    expect(section.preSectionTargets.length).toBe(1);
+    expect(section.preSectionTargets[0].name).toBe("first-target");
+    expect(section.subsections[0].preSectionTargets.length).toBe(2);
+    expect(section.subsections[0].preSectionTargets[0].name).toBe("alias1");
+    expect(section.subsections[0].preSectionTargets[1].name).toBe("alias2");
+    section = sections[1];
+    expect(section.preSectionTargets.length).toBe(1);
+    expect(section.preSectionTargets[0].name).toBe("another-target");
+    section = sections[2];
+
+    // It does not respect comments
+    expect(section.preSectionTargets.length).toBe(1);
+    expect(section.preSectionTargets[0].name).toBe("target");
   });
 });

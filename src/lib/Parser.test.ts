@@ -29,7 +29,7 @@ This is a subsection
     `
     );
     const result = parser.parse(document);
-    expect(result).toStrictEqual({
+    expect(result).toMatchObject({
       blanklines: [],
       children: [
         {
@@ -606,7 +606,7 @@ Even more text
 `
     );
     const result = parser.parse(document);
-    expect(result).toStrictEqual({
+    expect(result).toMatchObject({
       blanklines: [],
       children: [
         {
