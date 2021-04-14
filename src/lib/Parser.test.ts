@@ -30,134 +30,285 @@ This is a subsection
     );
     const result = parser.parse(document);
     expect(result).toStrictEqual({
+      blanklines: [],
       children: [
         {
+          blanklines: ["\n"],
           children: [
             {
               position: {
-                end: { column: 1, line: 3, offset: 13 },
-                start: { column: 1, line: 2, offset: 1 },
+                end: {
+                  column: 1,
+                  line: 3,
+                  offset: 13,
+                },
+                start: {
+                  column: 1,
+                  line: 2,
+                  offset: 1,
+                },
               },
               type: "text",
               value: "This is rST\n",
             },
           ],
           position: {
-            end: { column: 1, line: 3, offset: 13 },
-            start: { column: 1, line: 2, offset: 1 },
+            end: {
+              column: 1,
+              line: 3,
+              offset: 13,
+            },
+            start: {
+              column: 1,
+              line: 2,
+              offset: 1,
+            },
           },
           type: "paragraph",
         },
         {
+          blanklines: ["\n"],
           children: [
             {
+              blanklines: [],
               children: [
                 {
                   position: {
-                    end: { column: 7, line: 5, offset: 27 },
-                    start: { column: 1, line: 5, offset: 21 },
+                    end: {
+                      column: 7,
+                      line: 5,
+                      offset: 27,
+                    },
+                    start: {
+                      column: 1,
+                      line: 5,
+                      offset: 21,
+                    },
                   },
                   type: "text",
                   value: "Header",
                 },
               ],
               position: {
-                end: { column: 1, line: 7, offset: 35 },
-                start: { column: 1, line: 4, offset: 14 },
+                end: {
+                  column: 1,
+                  line: 7,
+                  offset: 35,
+                },
+                start: {
+                  column: 1,
+                  line: 4,
+                  offset: 14,
+                },
               },
               type: "title",
             },
             {
+              blanklines: ["\n"],
               children: [
                 {
                   position: {
-                    end: { column: 1, line: 9, offset: 64 },
-                    start: { column: 1, line: 8, offset: 36 },
+                    end: {
+                      column: 1,
+                      line: 9,
+                      offset: 64,
+                    },
+                    start: {
+                      column: 1,
+                      line: 8,
+                      offset: 36,
+                    },
                   },
                   type: "text",
                   value: "This is the heading section\n",
                 },
               ],
               position: {
-                end: { column: 1, line: 9, offset: 64 },
-                start: { column: 1, line: 8, offset: 36 },
+                end: {
+                  column: 1,
+                  line: 9,
+                  offset: 64,
+                },
+                start: {
+                  column: 1,
+                  line: 8,
+                  offset: 36,
+                },
               },
               type: "paragraph",
             },
             {
+              blanklines: ["\n"],
               children: [
                 {
+                  blanklines: [],
                   children: [
                     {
                       position: {
-                        end: { column: 11, line: 10, offset: 75 },
-                        start: { column: 1, line: 10, offset: 65 },
+                        end: {
+                          column: 11,
+                          line: 10,
+                          offset: 75,
+                        },
+                        start: {
+                          column: 1,
+                          line: 10,
+                          offset: 65,
+                        },
                       },
                       type: "text",
                       value: "Subsection",
                     },
                   ],
                   position: {
-                    end: { column: 1, line: 12, offset: 87 },
-                    start: { column: 1, line: 10, offset: 65 },
+                    end: {
+                      column: 1,
+                      line: 12,
+                      offset: 87,
+                    },
+                    start: {
+                      column: 1,
+                      line: 10,
+                      offset: 65,
+                    },
                   },
                   type: "title",
                 },
                 {
+                  blanklines: [],
                   children: [
                     {
                       position: {
-                        end: { column: 1, line: 13, offset: 108 },
-                        start: { column: 1, line: 12, offset: 87 },
+                        end: {
+                          column: 1,
+                          line: 13,
+                          offset: 108,
+                        },
+                        start: {
+                          column: 1,
+                          line: 12,
+                          offset: 87,
+                        },
                       },
                       type: "text",
                       value: "This is a subsection\n",
                     },
                   ],
                   position: {
-                    end: { column: 1, line: 13, offset: 108 },
-                    start: { column: 1, line: 12, offset: 87 },
+                    end: {
+                      column: 1,
+                      line: 13,
+                      offset: 108,
+                    },
+                    start: {
+                      column: 1,
+                      line: 12,
+                      offset: 87,
+                    },
                   },
                   type: "paragraph",
                 },
                 {
+                  blanklines: ["\n"],
                   children: [
                     {
+                      blanklines: [],
+                      children: [
+                        {
+                          position: {
+                            end: {
+                              column: 1,
+                              line: 17,
+                              offset: 155,
+                            },
+                            start: {
+                              column: 4,
+                              line: 16,
+                              offset: 132,
+                            },
+                          },
+                          type: "text",
+                          value: "This is some directive\n",
+                        },
+                      ],
                       position: {
-                        end: { column: 23, line: 15, offset: 151 },
-                        start: { column: 1, line: 15, offset: 129 },
+                        end: {
+                          column: 1,
+                          line: 17,
+                          offset: 155,
+                        },
+                        start: {
+                          column: 1,
+                          line: 16,
+                          offset: 129,
+                        },
                       },
-                      type: "text",
-                      value: "This is some directive",
+                      type: "paragraph",
                     },
                   ],
                   directive: "some-directive",
+                  indent: {
+                    offset: 3,
+                    width: 3,
+                  },
                   position: {
-                    end: { column: 1, line: 18, offset: 157 },
-                    start: { column: 1, line: 14, offset: 109 },
+                    end: {
+                      column: 1,
+                      line: 18,
+                      offset: 157,
+                    },
+                    start: {
+                      column: 1,
+                      line: 14,
+                      offset: 109,
+                    },
                   },
                   type: "directive",
                 },
               ],
               depth: 2,
               position: {
-                end: { column: 1, line: 18, offset: 157 },
-                start: { column: 1, line: 9, offset: 64 },
+                end: {
+                  column: 1,
+                  line: 18,
+                  offset: 157,
+                },
+                start: {
+                  column: 1,
+                  line: 9,
+                  offset: 64,
+                },
               },
               type: "section",
             },
           ],
           depth: 1,
           position: {
-            end: { column: 1, line: 18, offset: 157 },
-            start: { column: 1, line: 3, offset: 13 },
+            end: {
+              column: 1,
+              line: 18,
+              offset: 157,
+            },
+            start: {
+              column: 1,
+              line: 3,
+              offset: 13,
+            },
           },
           type: "section",
         },
       ],
       position: {
-        end: { column: 5, line: 18, offset: 161 },
-        start: { column: 1, line: 1, offset: 0 },
+        end: {
+          column: 5,
+          line: 18,
+          offset: 161,
+        },
+        start: {
+          column: 1,
+          line: 1,
+          offset: 0,
+        },
       },
       type: "document",
     });
@@ -335,7 +486,7 @@ Section 2
 Even more text
 `
     );
-    const result = parser.parse(document, { includePositions: false });
+    const result = parser.parse(document);
     expect(result).toMatchObject({
       type: "document",
       children: [
@@ -461,7 +612,7 @@ Even more text
       "restructuredtext",
       0,
       `
-.. seealso::
+.. seealso:: 
    :option: foo, bar
    :option2: another value
 
@@ -473,52 +624,236 @@ Even more text
    This is :ref:\`not parsed\`
 `
     );
-    const result = parser.parse(document, { includePositions: false });
+    const result = parser.parse(document);
     expect(result).toStrictEqual({
+      blanklines: [],
       children: [
         {
+          blanklines: ["\n"],
           children: [
             {
-              type: "text",
-              value: ":option: foo, bar\n",
-            },
-            {
-              type: "text",
-              value: ":option2: another value\n",
-            },
-            {
-              type: "text",
-              value: "This is ",
-            },
-            {
+              blanklines: [],
               children: [
                 {
+                  position: {
+                    end: {
+                      column: 1,
+                      line: 4,
+                      offset: 35,
+                    },
+                    start: {
+                      column: 4,
+                      line: 3,
+                      offset: 17,
+                    },
+                  },
                   type: "text",
-                  value: "parsed",
+                  value: ":option: foo, bar\n",
+                },
+                {
+                  position: {
+                    end: {
+                      column: 1,
+                      line: 5,
+                      offset: 62,
+                    },
+                    start: {
+                      column: 4,
+                      line: 4,
+                      offset: 38,
+                    },
+                  },
+                  type: "text",
+                  value: ":option2: another value\n",
                 },
               ],
-              role: "ref",
-              type: "interpreted_text",
+              position: {
+                end: {
+                  column: 1,
+                  line: 5,
+                  offset: 62,
+                },
+                start: {
+                  column: 1,
+                  line: 3,
+                  offset: 14,
+                },
+              },
+              type: "paragraph",
+            },
+            {
+              blanklines: ["\n"],
+              children: [
+                {
+                  position: {
+                    end: {
+                      column: 12,
+                      line: 6,
+                      offset: 74,
+                    },
+                    start: {
+                      column: 4,
+                      line: 6,
+                      offset: 66,
+                    },
+                  },
+                  type: "text",
+                  value: "This is ",
+                },
+                {
+                  blanklines: [],
+                  children: [
+                    {
+                      position: {
+                        end: {
+                          column: 25,
+                          line: 6,
+                          offset: 87,
+                        },
+                        start: {
+                          column: 18,
+                          line: 6,
+                          offset: 80,
+                        },
+                      },
+                      type: "text",
+                      value: "parsed",
+                    },
+                  ],
+                  position: {
+                    end: {
+                      column: 25,
+                      line: 6,
+                      offset: 87,
+                    },
+                    start: {
+                      column: 12,
+                      line: 6,
+                      offset: 74,
+                    },
+                  },
+                  role: "ref",
+                  type: "interpreted_text",
+                },
+                {
+                  position: {
+                    end: {
+                      column: 1,
+                      line: 7,
+                      offset: 88,
+                    },
+                    start: {
+                      column: 4,
+                      line: 6,
+                      offset: 66,
+                    },
+                  },
+                  type: "text",
+                  value: "\n",
+                },
+              ],
+              position: {
+                end: {
+                  column: 1,
+                  line: 7,
+                  offset: 88,
+                },
+                start: {
+                  column: 1,
+                  line: 6,
+                  offset: 63,
+                },
+              },
+              type: "paragraph",
             },
           ],
           directive: "seealso",
+          indent: {
+            offset: 3,
+            width: 3,
+          },
+          position: {
+            end: {
+              column: 1,
+              line: 8,
+              offset: 90,
+            },
+            start: {
+              column: 1,
+              line: 2,
+              offset: 1,
+            },
+          },
           type: "directive",
         },
         {
+          blanklines: [],
           children: [
             {
+              position: {
+                end: {
+                  column: 1,
+                  line: 12,
+                  offset: 157,
+                },
+                start: {
+                  column: 1,
+                  line: 9,
+                  offset: 106,
+                },
+              },
               type: "text",
               value: ":option: foo, bar",
             },
             {
+              position: {
+                end: {
+                  column: 1,
+                  line: 12,
+                  offset: 157,
+                },
+                start: {
+                  column: 1,
+                  line: 9,
+                  offset: 106,
+                },
+              },
               type: "text",
               value: "This is :ref:`not parsed`",
             },
           ],
           directive: "code-block",
+          indent: {
+            offset: 3,
+            width: 3,
+          },
+          position: {
+            end: {
+              column: 1,
+              line: 12,
+              offset: 157,
+            },
+            start: {
+              column: 1,
+              line: 8,
+              offset: 90,
+            },
+          },
           type: "directive",
         },
       ],
+      position: {
+        end: {
+          column: 1,
+          line: 12,
+          offset: 157,
+        },
+        start: {
+          column: 1,
+          line: 1,
+          offset: 0,
+        },
+      },
       type: "document",
     });
   });

@@ -147,4 +147,68 @@ This document has :ref:\`an-uncommented-reference\` as well
     expect(references.length).toBe(1);
     expect(references[0].name).toBe("an-uncommented-reference");
   });
+
+  it("finds references in directives", () => {
+    const document = TextDocument.create(
+      "test",
+      "",
+      0,
+      `This :ref:\`ref <first-ref>\` is in normal text.
+
+.. example::
+   
+   Test.
+   This :ref:\`one <second-ref>\` is in a seealso text.
+   Oh, here's :ref:\`another one\` is in a seealso text.
+   
+   .. seealso::
+      
+      And this :ref:\`one 
+      <fourth-ref>\` spans multiple lines.
+`
+    );
+
+    const references = parser.findReferences(document);
+    expect(references.length).toBe(4);
+    expect(references[0].location.range).toMatchObject({
+      start: {
+        character: 5,
+        line: 0,
+      },
+      end: {
+        character: 27,
+        line: 0,
+      },
+    });
+    expect(references[1].location.range).toMatchObject({
+      start: {
+        character: 8,
+        line: 5,
+      },
+      end: {
+        character: 31,
+        line: 5,
+      },
+    });
+    expect(references[2].location.range).toMatchObject({
+      start: {
+        character: 14,
+        line: 6,
+      },
+      end: {
+        character: 32,
+        line: 6,
+      },
+    });
+    expect(references[3].location.range).toMatchObject({
+      start: {
+        character: 15,
+        line: 10,
+      },
+      end: {
+        character: 19,
+        line: 11,
+      },
+    });
+  });
 });

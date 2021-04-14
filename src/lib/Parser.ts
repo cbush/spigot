@@ -15,7 +15,6 @@ import {
 } from "./RstNode";
 
 export type ParseOptions = {
-  includePositions: boolean;
   offset?: {
     line: number;
     offset: number;
@@ -232,13 +231,12 @@ function getSections(
 
 function parse(text: string, optionsIn?: ParseOptions): RstNode {
   const options: ParseOptions = {
-    includePositions: true,
     ...(optionsIn ?? {}),
   };
   const result = restructured.parse(text, {
-    position: options.includePositions,
-    blanklines: false,
-    indent: false,
+    position: true,
+    blanklines: true,
+    indent: true,
   }) as RstNode;
 
   // 'restructured' library does not process inner text as rST.
@@ -261,34 +259,43 @@ function parse(text: string, optionsIn?: ParseOptions): RstNode {
       return;
     }
 
-    const innerText = textNodes
-      .map((textNode) => textNode.value ?? "")
-      .join("\n");
+    // 'restructured' does not include newline information in the inner text
+    // nodes of the directive node. This makes them useless for reconstructing
+    // the rST, so instead we'll extract the raw text from the original input
+    // string. See https://github.com/seikichi/restructured/issues/5
+    const { start, end } = directiveNode.position;
+    const lines = text.substring(start.offset, end.offset).split("\n");
+    // The first line is the directive itself, so remove it.
+    const directiveLine = lines.shift();
+    assert(directiveLine !== undefined);
+    const indentOffset = directiveNode.indent?.offset ?? 0;
+    const innerText = lines.join("\n");
 
     const innerOptions = {
       ...options,
-    };
-    if (innerOptions.includePositions) {
-      const { start } = textNodes[0].position;
-      innerOptions.offset = {
+      offset: {
         // Line and column are 1-based. Offsets must be 0-based for addition, so
-        // convert by subtracting 1.
-        line: start.line - 1,
-        column: start.column - 1,
-        offset: start.offset,
-      };
-    }
-
+        // convert by subtracting 1. But we removed the directive line, so we add 1
+        // again. Net result = start.line + 0
+        line: start.line,
+        column: 0,
+        offset: start.offset + directiveLine.length,
+      },
+    };
+    // Do not re-add options.offset to the innerOptions.offset.
+    // Each recursion layer will add its own offset.
     const innerResult = parse(innerText, innerOptions);
     if (innerResult.children === undefined) {
       return;
     }
-    const paragraph = innerResult.children[0];
-    directiveNode.children = [...(paragraph.children ?? [])];
+    directiveNode.children = innerResult.children.reduce(
+      (acc, cur) => [...acc, ...(cur.children ?? [])],
+      [] as RstNode[]
+    );
   });
 
   const { offset } = options;
-  if (options.includePositions && offset !== undefined) {
+  if (offset !== undefined) {
     // Apply the offset in case of inner parsing. Columns are SCREWED
     findAll(result, (node) => {
       const originalPosition = node.position;

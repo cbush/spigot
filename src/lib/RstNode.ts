@@ -99,6 +99,11 @@ export type RstNode = {
     start: Position;
     end: Position;
   };
+  indent?: {
+    offset: number;
+    width: number;
+  };
+  blanklines?: string[];
   depth?: number;
   children?: RstNode[];
   value?: string;
