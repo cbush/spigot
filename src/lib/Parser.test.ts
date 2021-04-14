@@ -386,8 +386,9 @@ This is a subsection
     });
   });
 
-  it("treats targets as comments", () => {
-    // This is a limitation of the `restructured` node library.
+  it("fixes explicit targets", () => {
+    // The `restructured` node library finds targets as comments. The parser
+    // will fix them.
     const parser = new Parser();
     const document = TextDocument.create(
       "test.txt",
@@ -400,13 +401,8 @@ This is a subsection
       type: "document",
       children: [
         {
-          type: "comment",
-          children: [
-            {
-              type: "text",
-              value: "_my-target:",
-            },
-          ],
+          type: "target",
+          name: "my-target",
         },
       ],
     });
@@ -456,7 +452,7 @@ This is a subsection
     ).toBe(4); // This would be the WRONG answer. We did not convert.
   });
 
-  it("includes targets as comments in previous section", () => {
+  it("includes targets in previous section", () => {
     // This is a limitation of the `restructured` node library.
     const parser = new Parser();
     const document = TextDocument.create(
@@ -491,13 +487,8 @@ Even more text
       type: "document",
       children: [
         {
-          children: [
-            {
-              type: "text",
-              value: "_my-target:",
-            },
-          ],
-          type: "comment",
+          name: "my-target",
+          type: "target",
         },
         {
           children: [
@@ -520,13 +511,8 @@ Even more text
               type: "paragraph",
             },
             {
-              children: [
-                {
-                  type: "text",
-                  value: "_my-target2:", // Not associated with the next section
-                },
-              ],
-              type: "comment",
+              name: "my-target2", // Not associated with the next section
+              type: "target",
             },
             {
               children: [
@@ -549,13 +535,8 @@ Even more text
                   type: "paragraph",
                 },
                 {
-                  children: [
-                    {
-                      type: "text",
-                      value: "_my-target3:",
-                    },
-                  ],
-                  type: "comment",
+                  name: "my-target3",
+                  type: "target",
                 },
               ],
               depth: 2,

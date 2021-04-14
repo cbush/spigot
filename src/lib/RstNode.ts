@@ -120,3 +120,9 @@ export type DirectiveNode = RstNode & {
   directive: string;
   children: RstNode[];
 };
+
+export type TargetNode = RstNode & {
+  type: "target";
+  name: string;
+  children: undefined;
+};

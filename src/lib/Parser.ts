@@ -11,8 +11,66 @@ import {
   DirectiveNode,
   InterpretedTextNode,
   RstNode,
+  TargetNode,
   rstPositionToRange,
 } from "./RstNode";
+
+export class Parser {
+  /**
+    Returns the result of parsing the given rST text document. Uses cached
+    results based on the document version where possible.
+   */
+  parse = (document: TextDocument, options?: ParseOptions): RstNode => {
+    const entry = this._documents.get(document.uri);
+    if (entry !== undefined) {
+      const [lastParsedVersion, lastResult] = entry;
+      if (lastParsedVersion === document.version) {
+        return lastResult;
+      }
+    }
+    const result = parse(document.getText(), options);
+
+    this._documents.set(document.uri, [document.version, result]);
+    return result;
+  };
+
+  /**
+    Searches the document for ref-roles.
+   */
+  findReferences = (document: TextDocument): ReferenceEntity[] => {
+    const result = this.parse(document);
+    return getRefs(result, { documentUri: document.uri });
+  };
+
+  /**
+    Searches the document for targets that refs can link to.
+   */
+  findTargets = (document: TextDocument): TargetEntity[] => {
+    const result = this.parse(document);
+    return (findAll(
+      result,
+      (node) => node.type === "target",
+      (node) => node.type !== "comment"
+    ) as TargetNode[]).map((node) => ({
+      location: {
+        range: rstPositionToRange(node),
+        uri: document.uri,
+      },
+      type: "rst.target",
+      name: node.name,
+    }));
+  };
+
+  /**
+    Searches the document for section elements.
+   */
+  findSections = (document: TextDocument): SectionEntity[] => {
+    const result = this.parse(document);
+    return getSections(result, { documentUri: document.uri });
+  };
+
+  private _documents = new Map<DocumentUri, [DocumentVersion, RstNode]>();
+}
 
 export type ParseOptions = {
   offset?: {
@@ -57,6 +115,20 @@ function findAll<T extends { children?: T[] }>(
     });
   }
   return result;
+}
+
+/**
+  Visits every node.
+ */
+function forEach<T extends { children?: T[] }>(
+  node: T,
+  callback: (node: T, index?: number) => void
+) {
+  let i = 0;
+  findAll(node, (node) => {
+    callback(node, i++);
+    return true;
+  });
 }
 
 function findFirst<T extends { children?: T[] }>(
@@ -177,13 +249,13 @@ function getSeeAlsos(
 }
 
 function getSections(
-  node: RstNode,
+  document: RstNode,
   options: {
     documentUri: string;
   }
 ): SectionEntity[] {
   return findAll(
-    node,
+    document,
     (node) => node.type === "section",
     (node) =>
       !["comment", "section"].includes(node.type) &&
@@ -207,6 +279,11 @@ function getSections(
           (acc, cur) => [...acc, ...getSections(cur, options)],
           [] as SectionEntity[]
         ) ?? [];
+
+      const preSectionTargets = getPreSectionTargets({
+        document,
+        section: node,
+      });
       return {
         type: "section",
         depth: node.depth ?? 0,
@@ -215,7 +292,7 @@ function getSections(
           uri: options.documentUri,
         },
         name: title,
-        preSectionTargets: [],
+        preSectionTargets,
         inlineRefs,
         subsections,
         text,
@@ -229,6 +306,20 @@ function getSections(
   );
 }
 
+/**
+  Finds targets in the document associated with the section. The restructured
+  library puts targets before a section into the previous element.
+ */
+function getPreSectionTargets({
+  document,
+  section,
+}: {
+  document: RstNode;
+  section: RstNode;
+}): TargetEntity[] {
+  return [];
+}
+
 function parse(text: string, optionsIn?: ParseOptions): RstNode {
   const options: ParseOptions = {
     ...(optionsIn ?? {}),
@@ -239,60 +330,7 @@ function parse(text: string, optionsIn?: ParseOptions): RstNode {
     indent: true,
   }) as RstNode;
 
-  // 'restructured' library does not process inner text as rST.
-  // Run through directive nodes and update the child nodes.
-  findAll(result, isDirective).forEach((directiveNode) => {
-    // Some directives have literal bodies. Add more here.
-    if (["code-block"].includes((directiveNode as DirectiveNode).directive)) {
-      return;
-    }
-
-    // TODO: Parse directive options
-
-    const textNodes = findAll(directiveNode, (node) => node.type === "text");
-    // Check the assumption that 'restructured' will ONLY put text nodes in the
-    // directive nodes. If you hit this assertion please send the rST snippet
-    // that triggered it.
-    assert(textNodes.length === directiveNode.children?.length);
-
-    if (textNodes.length === 0) {
-      return;
-    }
-
-    // 'restructured' does not include newline information in the inner text
-    // nodes of the directive node. This makes them useless for reconstructing
-    // the rST, so instead we'll extract the raw text from the original input
-    // string. See https://github.com/seikichi/restructured/issues/5
-    const { start, end } = directiveNode.position;
-    const lines = text.substring(start.offset, end.offset).split("\n");
-    // The first line is the directive itself, so remove it.
-    const directiveLine = lines.shift();
-    assert(directiveLine !== undefined);
-    const indentOffset = directiveNode.indent?.offset ?? 0;
-    const innerText = lines.join("\n");
-
-    const innerOptions = {
-      ...options,
-      offset: {
-        // Line and column are 1-based. Offsets must be 0-based for addition, so
-        // convert by subtracting 1. But we removed the directive line, so we add 1
-        // again. Net result = start.line + 0
-        line: start.line,
-        column: 0,
-        offset: start.offset + directiveLine.length,
-      },
-    };
-    // Do not re-add options.offset to the innerOptions.offset.
-    // Each recursion layer will add its own offset.
-    const innerResult = parse(innerText, innerOptions);
-    if (innerResult.children === undefined) {
-      return;
-    }
-    directiveNode.children = innerResult.children.reduce(
-      (acc, cur) => [...acc, ...(cur.children ?? [])],
-      [] as RstNode[]
-    );
-  });
+  fixRestructuredNodes(result, text, options);
 
   const { offset } = options;
   if (offset !== undefined) {
@@ -318,84 +356,123 @@ function parse(text: string, optionsIn?: ParseOptions): RstNode {
   return result;
 }
 
-export class Parser {
-  /**
-    Returns the result of parsing the given rST text document. Uses cached
-    results based on the document version where possible.
-   */
-  parse = (document: TextDocument, options?: ParseOptions): RstNode => {
-    const entry = this._documents.get(document.uri);
-    if (entry !== undefined) {
-      const [lastParsedVersion, lastResult] = entry;
-      if (lastParsedVersion === document.version) {
-        return lastResult;
-      }
+/**
+  Iterate through the nodes returned by restructured and fix them to suit our
+  needs.
+ */
+function fixRestructuredNodes(
+  result: RstNode,
+  text: string,
+  options: ParseOptions
+) {
+  findAll(
+    result,
+    (node) => isDirective(node) || node.type === "comment"
+  ).forEach((node) => {
+    if (isDirective(node)) {
+      fixDirective(node as DirectiveNode, text, options);
+      return;
     }
-    const result = parse(document.getText(), options);
-    this._documents.set(document.uri, [document.version, result]);
-    return result;
-  };
+    fixTarget(node);
+  });
+}
 
-  /**
-    Searches the document for ref-roles.
-   */
-  findReferences = (document: TextDocument): ReferenceEntity[] => {
-    const result = this.parse(document);
-    return getRefs(result, { documentUri: document.uri });
-  };
+/**
+  'restructured' library does not process directive inner text as rST. Run
+  through directive nodes and update the child nodes.
+ */
+function fixDirective(
+  directiveNode: DirectiveNode,
+  text: string,
+  options: ParseOptions
+) {
+  // Some directives have literal bodies. Add more here.
+  if (["code-block"].includes(directiveNode.directive)) {
+    return;
+  }
 
-  /**
-    Searches the document for targets that refs can link to.
-   */
-  findTargets = (document: TextDocument): TargetEntity[] => {
-    const result = this.parse(document);
-    const entities: TargetEntity[] = [];
-    findAll(result, (node) => {
-      // `restructured` library views targets as comments
-      if (node.type !== "comment") {
-        return false;
-      }
-      if (node.children === undefined || node.children.length !== 1) {
-        return false;
-      }
-      const textNode = node.children[0];
-      if (
-        textNode.position.start.line !== node.position.start.line ||
-        textNode.type !== "text"
-      ) {
-        return false;
-      }
-      const text = textNode.value;
-      if (text === undefined) {
-        return false;
-      }
-      const re = /^_([^:]+):\s*$/;
-      const match = re.exec(text);
-      if (match === null) {
-        return false;
-      }
-      const name = match[1];
-      const range = rstPositionToRange(node);
-      entities.push({
-        location: {
-          range,
-          uri: document.uri,
-        },
-        type: "rst.target",
-        name,
-      });
-      return true;
-    });
-    return entities;
-  };
+  // TODO: Parse directive options
 
-  /**
-    Searches the document for section elements.
-   */
-  findSections = (document: TextDocument): SectionEntity[] => {
-    const result = this.parse(document);
-    return getSections(result, { documentUri: document.uri });
-  };
+  const textNodes = findAll(
+    directiveNode as RstNode,
+    (node) => node.type === "text"
+  );
+  assert(
+    textNodes.length === directiveNode.children?.length,
+    `Assumption failed: expected 'restructured' to ONLY put text nodes in the directive nodes.
+If you hit this assertion please send the rST snippet that triggered it.`
+  );
 
-  private _documents = new Map<DocumentUri, [DocumentVersion, RstNode]>();
+  if (textNodes.length === 0) {
+    return;
+  }
+
+  // 'restructured' does not include newline information in the inner text
+  // nodes of the directive node. This makes them useless for reconstructing
+  // the rST, so instead we'll extract the raw text from the original input
+  // string. See https://github.com/seikichi/restructured/issues/5
+  const { start, end } = directiveNode.position;
+  const lines = text.substring(start.offset, end.offset).split("\n");
+  // The first line is the directive itself, so remove it.
+  const directiveLine = lines.shift();
+  assert(directiveLine !== undefined);
+  const innerText = lines.join("\n");
+
+  const innerOptions = {
+    ...options,
+    offset: {
+      // Line and column are 1-based. Offsets must be 0-based for addition, so
+      // convert by subtracting 1. But we removed the directive line, so we add 1
+      // again. Net result = start.line + 0
+      line: start.line,
+      column: 0,
+      offset: start.offset + directiveLine.length,
+    },
+  };
+  // Do not re-add options.offset to the innerOptions.offset.
+  // Each recursion layer will add its own offset.
+  const innerResult = parse(innerText, innerOptions);
+  if (innerResult.children === undefined) {
+    return;
+  }
+  directiveNode.children = innerResult.children.reduce(
+    (acc, cur) => [...acc, ...(cur.children ?? [])],
+    [] as RstNode[]
+  );
+}
+
+/**
+  'restructured' sees explicit targets as comments. Run through and replace any
+  such nodes with target nodes. This will make them easier to work with later.
+ */
+function fixTarget(node: RstNode) {
+  // `restructured` library views targets as comments
+  if (node.type !== "comment") {
+    return;
+  }
+  if (node.children === undefined || node.children.length !== 1) {
+    return;
+  }
+  const textNode = node.children[0];
+  if (
+    textNode.position.start.line !== node.position.start.line ||
+    textNode.type !== "text"
+  ) {
+    return;
+  }
+  const text = textNode.value;
+  if (text === undefined) {
+    return;
+  }
+  const re = /^_([^:]+):\s*$/;
+  const match = re.exec(text);
+  if (match === null) {
+    return;
+  }
+
+  const targetNode = node as TargetNode;
+  // Convert the node inline.
+  targetNode.children = undefined;
+  targetNode.name = match[1];
+  targetNode.type = "target";
 }
