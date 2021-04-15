@@ -26,6 +26,37 @@ This is the section text.
     expect(section.text).toBe("This is the section text.\n");
   });
 
+  it("finds section titles", () => {
+    const parser = new Parser();
+    const document = TextDocument.create(
+      "test",
+      "",
+      0,
+      `This document has one section
+
+==============
+It's a Section
+==============
+
+This is the section text.
+`
+    );
+
+    const sections = parser.findSections(document);
+    expect(sections.length).toBe(1);
+    const section = sections[0];
+    expect(section.title?.location.range).toStrictEqual({
+      end: {
+        character: 0,
+        line: 5,
+      },
+      start: {
+        character: 0,
+        line: 2,
+      },
+    });
+  });
+
   it("finds subsections", () => {
     const parser = new Parser();
     const document = TextDocument.create(

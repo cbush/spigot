@@ -1,7 +1,12 @@
 import { Location } from "vscode-languageserver";
 
 export type Name = string;
-export type EntityType = "rst.role.ref" | "rst.target" | "section" | "seealso";
+export type EntityType =
+  | "rst.role.ref"
+  | "rst.target"
+  | "section"
+  | "seealso"
+  | "title";
 
 export interface Entity {
   type: EntityType;
@@ -17,8 +22,13 @@ export type TargetEntity = Entity & {
   type: "rst.target";
 };
 
+export type TitleEntity = Entity & {
+  type: "title";
+};
+
 export type SectionEntity = Entity & {
   type: "section";
+  title?: TitleEntity;
   depth: number;
   preSectionTargets: TargetEntity[];
   inlineRefs: ReferenceEntity[];

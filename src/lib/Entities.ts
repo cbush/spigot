@@ -1,7 +1,8 @@
+import { strict as assert } from "assert";
 import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
 import { Diagnostic, DiagnosticSeverity } from "vscode-languageserver";
 import deepEqual from "deep-equal";
-import { Entity, Name } from "./Entity";
+import { Entity, Name, SectionEntity } from "./Entity";
 import { Parser } from "./Parser";
 
 // Entities represents the collection of entities in documents.
@@ -52,6 +53,36 @@ export class Entities {
     return diagnostics;
   };
 
+  /**
+    Scans the given document for sections and returns any diagnostics.
+   */
+  addDocumentSections = (document: TextDocument): Diagnostic[] => {
+    const getDiagnostics = (section: SectionEntity) => {
+      const diagnostics: Diagnostic[] = [];
+      if (section.title === undefined) {
+        diagnostics.push({
+          message: "Section must have a title",
+          range: section.location.range,
+        });
+      } else if (section.preSectionTargets.length === 0) {
+        const { title } = section;
+        // Can it really be a section without a title?
+        assert(title !== undefined);
+        /*
+        // This would get annoying...
+        diagnostics.push({
+          message: "Section should have at least one explicit target",
+          range: title.location.range,
+        });
+        */
+      }
+      diagnostics.push(...section.subsections.map(getDiagnostics).flat());
+      return diagnostics;
+    };
+    const sections = this._parser.findSections(document);
+    return sections.map(getDiagnostics).flat();
+  };
+
   // Delete all existing entities previously found in this document
   // in case declarations were removed entirely.
   onDocumentRemoved = (uri: DocumentUri): boolean => {
@@ -84,7 +115,7 @@ export class Entities {
         };
       }
       this._declarations.set(name, entity);
-    } else {
+    } else if (type === "rst.role.ref") {
       if (!this.getDeclaration(name)) {
         // Unknown target
         return {

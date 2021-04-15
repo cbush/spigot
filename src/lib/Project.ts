@@ -39,7 +39,12 @@ export class Project {
     this._entities.onDocumentRemoved(uri);
     const targetDiagnostics = this._entities.addDocumentTargets(document);
     const referenceDiagnostics = this._entities.addDocumentReferences(document);
-    return [...targetDiagnostics, ...referenceDiagnostics];
+    const sectionDiagnostics = this._entities.addDocumentSections(document);
+    return [
+      ...targetDiagnostics,
+      ...referenceDiagnostics,
+      ...sectionDiagnostics,
+    ];
   };
 
   removeDocument = (uri: DocumentUri): boolean => {

@@ -6,6 +6,7 @@ import {
   SectionEntity,
   SeeAlsoEntity,
   TargetEntity,
+  TitleEntity,
 } from "./Entity";
 import {
   DirectiveNode,
@@ -158,7 +159,12 @@ function findFirst<T extends { children?: T[] }>(
   return undefined;
 }
 
-function getTitle(node: RstNode): string | undefined {
+function getTitle(
+  node: RstNode,
+  options: {
+    documentUri: string;
+  }
+): TitleEntity | undefined {
   const titleNode = findFirst(
     node,
     (node) => node.type === "title",
@@ -171,7 +177,14 @@ function getTitle(node: RstNode): string | undefined {
   if (textNode === undefined) {
     return undefined;
   }
-  return textNode.value;
+  return {
+    type: "title",
+    name: textNode.value ?? "",
+    location: {
+      uri: options.documentUri,
+      range: rstPositionToRange(titleNode),
+    },
+  };
 }
 
 function getContentText(node: RstNode): string {
@@ -270,7 +283,7 @@ function getSections(
       !isDirective(node, "seealso")
   ).map(
     (node): SectionEntity => {
-      const title = getTitle(node) ?? "";
+      const title = getTitle(node, options);
       const text = getContentText(node);
 
       // Inline refs are all refs in the body text except in the seealsos and
@@ -294,12 +307,13 @@ function getSections(
       });
       return {
         type: "section",
+        title,
         depth: node.depth ?? 0,
         location: {
           range: rstPositionToRange(node),
           uri: options.documentUri,
         },
-        name: title,
+        name: title?.name ?? "",
         preSectionTargets,
         inlineRefs,
         subsections,
